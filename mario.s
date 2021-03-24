@@ -197,8 +197,9 @@ main:
 	bcc @l
 	
 	@t:
-	jsr $FFE4
-	cmp #$00
+	lda #$00
+	jsr $FF56
+	and #$20
 	beq @t
 
 end:	
