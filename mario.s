@@ -2,12 +2,15 @@
 .SEGMENT "INIT"
 .SEGMENT "ONCE"
 	jmp setup
-	
+
+.include "macros.s"	
 .include "vsync.s"
 
 custom_palette: ; 512 bytes , 256 bytes of 4 bit green and 4 bit blue information
 ; second 512 is red color information (still 4 bit)
-	.res 512,$00
+	.incbin "palette.bin"
+default_palette:
+	.byte $00, $00, $FF, $0F, $00, $08, $FE, $0A, $4C, $0C, $c5, $00, $0a, $00, $e7, $0e, $85, $0d, $40, $06, $77, $0f, $33, $03, $77, $07, $f6, $0a, $8f, $00, $bb, $0b
 custom_tiles: 
 	.incbin "mario_background.chr"
 custom_tiles_end:
@@ -19,7 +22,7 @@ mario_palette_offset:
 player_x:
 	.byte $00, $00
 player_y:
-	.byte $00, $00
+	.byte $00
 frameCounter:
 	.byte $00
 setup:
@@ -81,29 +84,14 @@ setup:
 	bcc @l
 	
 	;load new palette ;
-	lda #$00
-	sta $9F20 
-	lda #$FA
-	sta $9F21 
-	lda #$11
-	sta $9F22 
-	
-	;@l_palette:
-	;lda custom_palette,X 
-	;sta $9F23 
-	;lda custom_palette+256,X 
-	;sta $9F23 
-	
-	;inx 
-	;cpx #$00
-	;bne @l_palette
+	jsr loadPalette 
 	
 	; load sprites into ram next ; 
 	lda #$00
 	sta $9F20
-	lda #$60
+	lda #$40
 	sta $9F21 
-	lda #$10
+	lda #$11
 	sta $9F22
 	
 	lda #<sprite_data
@@ -116,7 +104,7 @@ setup:
 	lda ($10),Y
 	sta $9F23 
 	
-	clc 
+	clc ; increment address to read from ; 
 	lda $10
 	adc #$01
 	sta $10
@@ -135,37 +123,53 @@ setup:
 	sta player_x
 	sta player_y
 	lda #$00
-	sta player_x+1
-	sta player_y+1	
+	sta player_x+1	
+	lda #$04
+	sta mario_palette_offset
 	
-	; create sprite ;
+	write_sprite #$01, #$32, player_x, #$00, player_y, #$00, #$01, #$00
+	write_sprite #$02, #$33, player_x, #$08, player_y, #$00, #$01, #$00
+	write_sprite #$03, #$34, player_x, #$00, player_y, #$08, #$01, #$00
+	write_sprite #$04, #$35, player_x, #$08, player_y, #$08, #$01, #$00
+		
+	jmp main 
+	
+loadPalette:
 	lda #$00
 	sta $9F20 
-	lda #$FC
+	lda #$FA
 	sta $9F21 
 	lda #$11
 	sta $9F22 
+	ldx #$00
 	
-	lda #$00 ; sprite number 
-	sta $9F23 ; byte 0
-	lda #0 ;#%00000011
-	sta $9F23 ; byte 1 
-	lda player_x
-	sta $9F23 ; byte 2 ; low byte sprite x
-	lda player_x+1
-	and #%00000011
-	sta $9F23 ; byte 3 ; high byte sprite x
-	lda player_y
-	sta $9F23 ; byte 4 ; low byte sprite y
-	lda player_y+1
-	and #%00000011
-	sta $9F23 ; byte 5 ; high byte sprite y
-	lda #%00001100
-	sta $9F23 ; byte 6 ; collision mask, z depth, v & h flip
-	lda mario_palette_offset 
-	and #$0F
-	sta $9F23 ; byte 7 ; sprite height & width, palette offset 
+	@l_palette:
+	lda custom_palette,X 
+	sta $9F23 
 	
+	lda custom_palette+256,X 
+	sta $9F23 
+	
+	inx 
+	cpx #$00
+	bne @l_palette
+	rts 
+resetPalette:
+	lda #$00
+	sta $9F20 
+	lda #$FA
+	sta $9F21 
+	lda #$11
+	sta $9F22 
+	ldx #$00
+	@l:
+	lda default_palette,X
+	sta $9F23 
+	
+	inx 
+	cpx #32
+	bcc @l
+	rts 
 main:
 	lda #$00
 	sta $9F20
@@ -199,5 +203,6 @@ main:
 
 end:	
 	jsr reset_irq_handler
+	jsr resetPalette
 	clc
 	jmp $FF47
