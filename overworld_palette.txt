@@ -1,0 +1,28 @@
+; mystery boxes
+#9c4a00 ; brown 
+#e79c21 ; yellow - this color changes 
+#000000 ; black 
+; fire mario ;
+#fc9838 ; tan
+#fcd8a8 ; white
+#d82800 ; red
+; normal mario ;
+#d0a040 ; yellow
+#d82800 ; red
+#608020 ; off green
+;for koopas and stuff ;
+#ffffff ; white 
+#fc9838 ; tan
+#00a800 ; green 
+;red this time ;
+#ffffff ; white 
+#fc9838 ; tan
+#d82800 ; red
+; brown palette for bricks and stuff ; 
+#c84c0c ; brown-type color 
+#fcbcb0 ; some sorta tan ;
+#000000 ; black
+; for the pipes ;
+#109400 ; darker green 
+#80d010 ; light green
+#000000 ; black 

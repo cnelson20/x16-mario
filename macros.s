@@ -1,3 +1,17 @@
+.DEFINE RT_BUTTON 			%00000001
+.DEFINE LT_BUTTON 			%00000010
+.DEFINE DN_BUTTON 			%00000100
+.DEFINE UP_BUTTON	 		%00001000
+.DEFINE START_BUTTON		%00010000
+.DEFINE SEL_BUTTON 			%00100000
+.DEFINE B_BUTTON 			%01000000
+.DEFINE A_BUTTON	 		%10000000
+
+.DEFINE SCROLL_POINT		$A0
+
+.DEFINE VERA_X_SCROLL_LO	$9F37
+.DEFINE VERA_X_SCROLL_HI	$9F38
+
 .macro write_sprite mem_number, data_no, x_pos, x_offset, y_pos, y_offset, palette_offset, flip	
 	; create sprite ;
 	lda mem_number
@@ -41,3 +55,5 @@
 	and #$0F
 	sta $9F23 ; byte 7 ; sprite height & width, palette offset 
 .endmacro
+
+

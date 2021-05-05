@@ -1,5 +1,7 @@
 Default_irq_handler: 
 	.byte $00, $00
+frameCounter:
+	.byte $00
 set_custom_irq_handler:
     sei
     lda #<custom_irq_handler
@@ -32,7 +34,7 @@ custom_irq_handler:
 	; vsync ;
 	inc frameCounter
 	
-	
+	jsr game
 	
     @irq_done:
     jmp (Default_irq_handler)
