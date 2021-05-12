@@ -11,10 +11,13 @@
 .include "vsync.s"
 .include "data.s"
 
+tiles_data_table:
+	.res $100,$00
 overworld_palette:
 	.incbin "overworld_palette.bin"
-default_palette:
-	.incbin "default_palette.bin"
+custom_tiles_name:
+	.byte "mario_background.chr"
+custom_tiles_name_end:
 custom_tiles:
 	.incbin "mario_background.chr"
 custom_tiles_end:
@@ -33,6 +36,14 @@ mysterybox_no:
 hud_text:
 	.byte $20, $20, $20, $4D, $41, $52, $49, $4F, $20, $20, $20, $20, $20, $20, $20, $20, $20, $20, $57, $4F, $52, $4C, $44, $20, $20, $20, $54, $49, $4D, $45
 hud_text_end:
+; $02 = always advance, $01 = advance if running ;
+timing_frame_dat:
+; neither = 00
+; running = 10 
+; walking = 01
+; both    =	11
+	.byte %11, %00, %00, %00, %10, %00, %01, %00, %10, %00, %00, %00
+	.byte %11, %00, %00, %00, %10, %00, %01, %00, %10, %00, %00, %00
 frame_data:
 	;little mario ;
 	; mario standing still ;
@@ -46,9 +57,6 @@ frame_data:
 	; mario jumping ;
 	.byte $32, $00, $41, $00, $42, $00, $43, $00
 	; mario turning ;
-keys_pressed:
-;         lt,  rt,  up,  down, st, sel, b,   a  ;
-	.byte $00, $00, $00, $00, $00, $00, $00, $00
 quit:
 	.byte $00
 paused:
@@ -64,9 +72,9 @@ mario_yVel:
 mario_pos:
 	.byte $00, $00
 mario_data:
-; inair, walk frame, powerup, direction ;
+; inair, walk frame, powerup, direction, ground_run ;
 ; powerup: 0 = small 1=mushroom 2=fire flower ;
-	.byte $00, $00, $00, $00
+	.byte $00, $00, $00, $00, $00
 player_x:
 	.byte $00, $00
 player_y:
@@ -74,8 +82,6 @@ player_y:
 map_scroll:
 	.byte $00, $00, $00, $00
 temp_scroll:
-	.byte $00, $00
-controller_input:
 	.byte $00, $00
 timer_frames:
 	.byte $00
@@ -87,426 +93,517 @@ NES_RAM:
 	.res $800,$00
 NES_RAM_end:
 
-		ObjectOffset		  = $08+NES_RAM
-
-		Timers                = $0780
-		SelectTimer           = $0780
-		PlayerAnimTimer       = $0781
-		JumpSwimTimer         = $0782
-		RunningTimer          = $0783
-		BlockBounceTimer      = $0784
-		SideCollisionTimer    = $0785
-		JumpspringTimer       = $0786
-		GameTimerCtrlTimer    = $0787
-		ClimbSideTimer        = $0789
-		EnemyFrameTimer       = $078a
-		FrenzyEnemyTimer      = $078f
-		BowserFireBreathTimer = $0790
-		StompTimer            = $0791
-		AirBubbleTimer        = $0792
-		ScrollIntervalTimer   = $0795
-		EnemyIntervalTimer    = $0796
-		BrickCoinTimer        = $079d
-		InjuryTimer           = $079e
-		StarInvincibleTimer   = $079f
-		ScreenTimer           = $07a0
-		WorldEndTimer         = $07a1
-		DemoTimer             = $07a2
-
-
-		Sprite_Y_Position     = $0200+NES_RAM
-		Sprite_Tilenumber     = $0201+NES_RAM
-		Sprite_Attributes     = $0202+NES_RAM
-		Sprite_X_Position     = $0203+NES_RAM
-
-		ScreenEdge_PageLoc    = $071a+NES_RAM
-		ScreenEdge_X_Pos      = $071c+NES_RAM
-		ScreenLeft_PageLoc    = $071a+NES_RAM
-		ScreenRight_PageLoc   = $071b+NES_RAM
-		ScreenLeft_X_Pos      = $071c+NES_RAM
-		ScreenRight_X_Pos     = $071d+NES_RAM
-
-		PlayerFacingDir       = $33+NES_RAM
-		DestinationPageLoc    = $34+NES_RAM
-		VictoryWalkControl    = $35+NES_RAM
-		ScrollFractional      = $0768+NES_RAM
-		PrimaryMsgCounter     = $0719+NES_RAM
-		SecondaryMsgCounter   = $0749+NES_RAM
-
-		HorizontalScroll      = $073f+NES_RAM
-		VerticalScroll        = $0740+NES_RAM
-		ScrollLock            = $0723+NES_RAM
-		ScrollThirtyTwo       = $073d+NES_RAM
-		Player_X_Scroll       = $06ff+NES_RAM
-		Player_Pos_ForScroll  = $0755+NES_RAM
-		ScrollAmount          = $0775+NES_RAM
-
-		AreaData              = $e7;+NES_RAM
-		AreaDataLow           = $e7;+NES_RAM
-		AreaDataHigh          = $e8;+NES_RAM
-		EnemyData             = $e9;+NES_RAM
-		EnemyDataLow          = $e9;+NES_RAM
-		EnemyDataHigh         = $ea;+NES_RAM
-
-		AreaParserTaskNum     = $071f+NES_RAM
-		ColumnSets            = $071e+NES_RAM
-		CurrentPageLoc        = $0725+NES_RAM
-		CurrentColumnPos      = $0726+NES_RAM
-		BackloadingFlag       = $0728+NES_RAM
-		BehindAreaParserFlag  = $0729+NES_RAM
-		AreaObjectPageLoc     = $072a+NES_RAM
-		AreaObjectPageSel     = $072b+NES_RAM
-		AreaDataOffset        = $072c+NES_RAM
-		AreaObjOffsetBuffer   = $072d+NES_RAM
-		AreaObjectLength      = $0730+NES_RAM
-		StaircaseControl      = $0734+NES_RAM
-		AreaObjectHeight      = $0735+NES_RAM
-		MushroomLedgeHalfLen  = $0736+NES_RAM
-		EnemyDataOffset       = $0739+NES_RAM
-		EnemyObjectPageLoc    = $073a+NES_RAM
-		EnemyObjectPageSel    = $073b+NES_RAM
-		MetatileBuffer        = $06a1+NES_RAM
-		BlockBufferColumnPos  = $06a0+NES_RAM
-		CurrentNTAddr_Low     = $0721+NES_RAM
-		CurrentNTAddr_High    = $0720+NES_RAM
-		AttributeBuffer       = $03f9+NES_RAM
-
-		LoopCommand           = $0745+NES_RAM
-
-		DisplayDigits         = $07d7+NES_RAM
-		TopScoreDisplay       = $07d7+NES_RAM
-		ScoreAndCoinDisplay   = $07dd+NES_RAM
-		PlayerScoreDisplay    = $07dd+NES_RAM
-		score = PlayerScoreDisplay
-		coins = PlayerScoreDisplay+6
-		GameTimerDisplay      = $07f8+NES_RAM
-		timer = GameTimerDisplay
-		DigitModifier         = $0134+NES_RAM
-
-		VerticalFlipFlag      = $0109+NES_RAM
-		FloateyNum_Control    = $0110+NES_RAM
-		ShellChainCounter     = $0125+NES_RAM
-		FloateyNum_Timer      = $012c+NES_RAM
-		FloateyNum_X_Pos      = $0117+NES_RAM
-		FloateyNum_Y_Pos      = $011e+NES_RAM
-		FlagpoleFNum_Y_Pos    = $010d+NES_RAM
-		FlagpoleFNum_YMFDummy = $010e+NES_RAM
-		FlagpoleScore         = $010f+NES_RAM
-		FlagpoleCollisionYPos = $070f+NES_RAM
-		StompChainCounter     = $0484+NES_RAM
-
-
-		VRAM_Buffer1_Offset   = $0300+NES_RAM
-		VRAM_Buffer1          = $0301+NES_RAM
-		VRAM_Buffer2_Offset   = $0340+NES_RAM
-		VRAM_Buffer2          = $0341+NES_RAM
-		VRAM_Buffer_AddrCtrl  = $0773+NES_RAM
-		Sprite0HitDetectFlag  = $0722+NES_RAM
-		DisableScreenFlag     = $0774+NES_RAM
-		DisableIntermediate   = $0769+NES_RAM
-		ColorRotateOffset     = $06d4+NES_RAM
-
-		TerrainControl        = $0727+NES_RAM
-		AreaStyle             = $0733+NES_RAM
-		ForegroundScenery     = $0741+NES_RAM
-		BackgroundScenery     = $0742+NES_RAM
-		CloudTypeOverride     = $0743+NES_RAM
-		BackgroundColorCtrl   = $0744+NES_RAM
-		AreaType              = $074e+NES_RAM
-		AreaAddrsLOffset      = $074f+NES_RAM
-		AreaPointer           = $0750+NES_RAM
-
-		PlayerEntranceCtrl    = $0710+NES_RAM
-		GameTimerSetting      = $0715+NES_RAM
-		AltEntranceControl    = $0752+NES_RAM
-		EntrancePage          = $0751+NES_RAM
-		NumberOfPlayers       = $077a+NES_RAM
-		WarpZoneControl       = $06d6+NES_RAM
-		ChangeAreaTimer       = $06de+NES_RAM
-
-		MultiLoopCorrectCntr  = $06d9+NES_RAM
-		MultiLoopPassCntr     = $06da+NES_RAM
-
-		FetchNewGameTimerFlag = $0757+NES_RAM
-		GameTimerExpiredFlag  = $0759+NES_RAM
-
-		PrimaryHardMode       = $076a+NES_RAM
-		SecondaryHardMode     = $06cc+NES_RAM
-		WorldSelectNumber     = $076b+NES_RAM
-		WorldSelectEnableFlag = $07fc+NES_RAM
-		ContinueWorld         = $07fd+NES_RAM
-
-		CurrentPlayer         = $0753+NES_RAM
-		PlayerSize            = $0754+NES_RAM
-		PlayerStatus          = $0756+NES_RAM
-
-		OnscreenPlayerInfo    = $075a+NES_RAM
-		NumberofLives         = $075a+NES_RAM ;used by current player
-		lives = NumberofLives
-		HalfwayPage           = $075b+NES_RAM
-		LevelNumber           = $075c+NES_RAM ;the actual dash number
-		Hidden1UpFlag         = $075d+NES_RAM
-		CoinTally             = $075e+NES_RAM
-		WorldNumber           = $075f+NES_RAM
-		world = WorldNumber
-		AreaNumber            = $0760+NES_RAM ;internal number used to find areas
-		level = AreaNumber
-
-		CoinTallyFor1Ups      = $0748+NES_RAM
+	ObjectOffset          = $08
+	
+	FrameCounter          = $09
+	
+	SavedJoypadBits       = $06fc+NES_RAM
+	controller_input = SavedJoypad1Bits
+	SavedJoypad1Bits      = $06fc+NES_RAM
+	SavedJoypad2Bits      = $06fd+NES_RAM
+	JoypadBitMask         = $074a+NES_RAM
+	JoypadOverride        = $0758+NES_RAM
+	
+	A_B_Buttons           = $0a
+	PreviousA_B_Buttons   = $0d
+	Up_Down_Buttons       = $0b
+	Left_Right_Buttons    = $0c
+	
+	GameEngineSubroutine  = $0e
+	
+	Mirror_PPU_CTRL_REG1  = $0778+NES_RAM
+	Mirror_PPU_CTRL_REG2  = $0779+NES_RAM
+	
+	OperMode              = $0770+NES_RAM
+	OperMode_Task         = $0772+NES_RAM
+	ScreenRoutineTask     = $073c+NES_RAM
+	
+	GamePauseStatus       = $0776+NES_RAM
+	GamePauseTimer        = $0777+NES_RAM
+	
+	DemoAction            = $0717+NES_RAM
+	DemoActionTimer       = $0718+NES_RAM
+	
+	TimerControl          = $0747+NES_RAM
+	IntervalTimerControl  = $077f+NES_RAM
+	
+	Timers                = $0780+NES_RAM
+	SelectTimer           = $0780+NES_RAM
+	PlayerAnimTimer       = $0781+NES_RAM
+	JumpSwimTimer         = $0782+NES_RAM
+	RunningTimer          = $0783+NES_RAM
+	BlockBounceTimer      = $0784+NES_RAM
+	SideCollisionTimer    = $0785+NES_RAM
+	JumpspringTimer       = $0786+NES_RAM
+	GameTimerCtrlTimer    = $0787+NES_RAM
+	ClimbSideTimer        = $0789+NES_RAM
+	EnemyFrameTimer       = $078a+NES_RAM
+	FrenzyEnemyTimer      = $078f+NES_RAM
+	BowserFireBreathTimer = $0790+NES_RAM
+	StompTimer            = $0791+NES_RAM
+	AirBubbleTimer        = $0792+NES_RAM
+	ScrollIntervalTimer   = $0795+NES_RAM
+	EnemyIntervalTimer    = $0796+NES_RAM
+	BrickCoinTimer        = $079d+NES_RAM
+	InjuryTimer           = $079e+NES_RAM
+	StarInvincibleTimer   = $079f+NES_RAM
+	ScreenTimer           = $07a0+NES_RAM
+	WorldEndTimer         = $07a1+NES_RAM
+	DemoTimer             = $07a2+NES_RAM
+	
+	Sprite_Data           = $0200+NES_RAM
+	
+	Sprite_Y_Position     = $0200+NES_RAM
+	Sprite_Tilenumber     = $0201+NES_RAM
+	Sprite_Attributes     = $0202+NES_RAM
+	Sprite_X_Position     = $0203+NES_RAM
+	
+	ScreenEdge_PageLoc    = $071a+NES_RAM
+	ScreenEdge_X_Pos      = $071c+NES_RAM
+	ScreenLeft_PageLoc    = $071a+NES_RAM
+	ScreenRight_PageLoc   = $071b+NES_RAM
+	ScreenLeft_X_Pos      = $071c+NES_RAM
+	ScreenRight_X_Pos     = $071d+NES_RAM
+	
+	PlayerFacingDir       = $33+NES_RAM
+	DestinationPageLoc    = $34
+	VictoryWalkControl    = $35+NES_RAM 
+	ScrollFractional      = $0768+NES_RAM
+	PrimaryMsgCounter     = $0719+NES_RAM
+	SecondaryMsgCounter   = $0749+NES_RAM
+	
+	HorizontalScroll      = $073f+NES_RAM
+	VerticalScroll        = $0740+NES_RAM
+	ScrollLock            = $0723+NES_RAM
+	ScrollThirtyTwo       = $073d+NES_RAM
+	Player_X_Scroll       = $06ff+NES_RAM
+	Player_Pos_ForScroll  = $0755+NES_RAM
+	ScrollAmount          = $0775+NES_RAM
+	
+	AreaData              = $e7
+	AreaDataLow           = $e7
+	AreaDataHigh          = $e8
+	EnemyData             = $e9
+	EnemyDataLow          = $e9
+	EnemyDataHigh         = $ea
+	
+	AreaParserTaskNum     = $071f+NES_RAM
+	ColumnSets            = $071e+NES_RAM
+	CurrentPageLoc        = $0725+NES_RAM
+	CurrentColumnPos      = $0726+NES_RAM
+	BackloadingFlag       = $0728+NES_RAM
+	BehindAreaParserFlag  = $0729+NES_RAM
+	AreaObjectPageLoc     = $072a+NES_RAM
+	AreaObjectPageSel     = $072b+NES_RAM
+	AreaDataOffset        = $072c+NES_RAM
+	AreaObjOffsetBuffer   = $072d+NES_RAM
+	AreaObjectLength      = $0730+NES_RAM
+	StaircaseControl      = $0734+NES_RAM
+	AreaObjectHeight      = $0735+NES_RAM
+	MushroomLedgeHalfLen  = $0736+NES_RAM
+	EnemyDataOffset       = $0739+NES_RAM
+	EnemyObjectPageLoc    = $073a+NES_RAM
+	EnemyObjectPageSel    = $073b+NES_RAM
+	MetatileBuffer        = $06a1+NES_RAM
+	BlockBufferColumnPos  = $06a0+NES_RAM
+	CurrentNTAddr_Low     = $0721+NES_RAM
+	CurrentNTAddr_High    = $0720+NES_RAM
+	AttributeBuffer       = $03f9+NES_RAM
+	
+	LoopCommand           = $0745+NES_RAM
+	
+	DisplayDigits         = $07d7+NES_RAM
+	TopScoreDisplay       = $07d7+NES_RAM
+	ScoreAndCoinDisplay   = $07dd+NES_RAM
+	PlayerScoreDisplay    = $07dd+NES_RAM
+	score = PlayerScoreDisplay
+	GameTimerDisplay      = $07f8+NES_RAM
+	timer = GameTimerDisplay
+	DigitModifier         = $0134+NES_RAM
+	
+	VerticalFlipFlag      = $0109+NES_RAM
+	FloateyNum_Control    = $0110+NES_RAM
+	ShellChainCounter     = $0125+NES_RAM
+	FloateyNum_Timer      = $012c+NES_RAM
+	FloateyNum_X_Pos      = $0117+NES_RAM
+	FloateyNum_Y_Pos      = $011e+NES_RAM
+	FlagpoleFNum_Y_Pos    = $010d+NES_RAM
+	FlagpoleFNum_YMFDummy = $010e+NES_RAM
+	FlagpoleScore         = $010f+NES_RAM
+	FlagpoleCollisionYPos = $070f+NES_RAM
+	StompChainCounter     = $0484+NES_RAM
+	
+	VRAM_Buffer1_Offset   = $0300+NES_RAM
+	VRAM_Buffer1          = $0301+NES_RAM
+	VRAM_Buffer2_Offset   = $0340+NES_RAM
+	VRAM_Buffer2          = $0341+NES_RAM
+	VRAM_Buffer_AddrCtrl  = $0773+NES_RAM
+	Sprite0HitDetectFlag  = $0722+NES_RAM
+	DisableScreenFlag     = $0774+NES_RAM
+	DisableIntermediate   = $0769+NES_RAM
+	ColorRotateOffset     = $06d4+NES_RAM
+	
+	TerrainControl        = $0727+NES_RAM
+	AreaStyle             = $0733+NES_RAM
+	ForegroundScenery     = $0741+NES_RAM
+	BackgroundScenery     = $0742+NES_RAM
+	CloudTypeOverride     = $0743+NES_RAM
+	BackgroundColorCtrl   = $0744+NES_RAM
+	AreaType              = $074e+NES_RAM
+	AreaAddrsLOffset      = $074f+NES_RAM
+	AreaPointer           = $0750+NES_RAM
+	
+	PlayerEntranceCtrl    = $0710+NES_RAM
+	GameTimerSetting      = $0715+NES_RAM
+	AltEntranceControl    = $0752+NES_RAM
+	EntrancePage          = $0751+NES_RAM
+	NumberOfPlayers       = $077a+NES_RAM
+	WarpZoneControl       = $06d6+NES_RAM
+	ChangeAreaTimer       = $06de+NES_RAM
+	
+	MultiLoopCorrectCntr  = $06d9+NES_RAM
+	MultiLoopPassCntr     = $06da+NES_RAM
+	
+	FetchNewGameTimerFlag = $0757+NES_RAM
+	GameTimerExpiredFlag  = $0759+NES_RAM
+	
+	PrimaryHardMode       = $076a+NES_RAM
+	SecondaryHardMode     = $06cc+NES_RAM
+	WorldSelectNumber     = $076b+NES_RAM
+	WorldSelectEnableFlag = $07fc+NES_RAM
+	ContinueWorld         = $07fd+NES_RAM
+	
+	CurrentPlayer         = $0753+NES_RAM
+	PlayerSize            = $0754+NES_RAM
+	PlayerStatus          = $0756+NES_RAM
+	
+	OnscreenPlayerInfo    = $075a+NES_RAM
+	NumberofLives         = $075a+NES_RAM ;used by current player
+	lives = NumberofLives
+	HalfwayPage           = $075b+NES_RAM
+	LevelNumber           = $075c+NES_RAM ;the actual dash number
+	Hidden1UpFlag         = $075d+NES_RAM
+	CoinTally             = $075e+NES_RAM
+	WorldNumber           = $075f+NES_RAM
+	world = WorldNumber
+	AreaNumber            = $0760+NES_RAM ;internal number used to find areas
+	level = AreaNumber
+	
+	CoinTallyFor1Ups      = $0748+NES_RAM
+	coins = CoinTallyFor1Ups
+	
+	OffscreenPlayerInfo   = $0761+NES_RAM
+	OffScr_NumberofLives  = $0761+NES_RAM ;used by offscreen player
+	OffScr_HalfwayPage    = $0762+NES_RAM
+	OffScr_LevelNumber    = $0763+NES_RAM
+	OffScr_Hidden1UpFlag  = $0764+NES_RAM
+	OffScr_CoinTally      = $0765+NES_RAM
+	OffScr_WorldNumber    = $0766+NES_RAM
+	OffScr_AreaNumber     = $0767+NES_RAM
+	
+	BalPlatformAlignment  = $03a0+NES_RAM
+	Platform_X_Scroll     = $03a1+NES_RAM
+	PlatformCollisionFlag = $03a2+NES_RAM
+	YPlatformTopYPos      = $0401+NES_RAM
+	YPlatformCenterYPos   = $58
+	
+	BrickCoinTimerFlag    = $06bc+NES_RAM
+	StarFlagTaskControl   = $0746+NES_RAM
+	
+	PseudoRandomBitReg    = $07a7+NES_RAM
+	WarmBootValidation    = $07ff+NES_RAM
+	
+	SprShuffleAmtOffset   = $06e0+NES_RAM
+	SprShuffleAmt         = $06e1+NES_RAM
+	SprDataOffset         = $06e4+NES_RAM
+	Player_SprDataOffset  = $06e4+NES_RAM
+	Enemy_SprDataOffset   = $06e5+NES_RAM
+	Block_SprDataOffset   = $06ec+NES_RAM
+	Alt_SprDataOffset     = $06ec+NES_RAM
+	Bubble_SprDataOffset  = $06ee+NES_RAM
+	FBall_SprDataOffset   = $06f1+NES_RAM
+	Misc_SprDataOffset    = $06f3+NES_RAM
+	SprDataOffset_Ctrl    = $03ee+NES_RAM
+	
+	Player_State          = $1d
+	Enemy_State           = $1e
+	Fireball_State        = $24
+	Block_State           = $26
+	Misc_State            = $2a
+	
+	Player_MovingDir      = $45
+	Enemy_MovingDir       = $46
+	
+	SprObject_X_Speed     = $57
+	Player_X_Speed        = $57
+	Enemy_X_Speed         = $58
+	Fireball_X_Speed      = $5e
+	Block_X_Speed         = $60
+	Misc_X_Speed          = $64
+	
+	Jumpspring_FixedYPos  = $58
+	JumpspringAnimCtrl    = $070e+NES_RAM
+	JumpspringForce       = $06db+NES_RAM
+	
+	SprObject_PageLoc     = $6d
+	Player_PageLoc        = $6d
+	Enemy_PageLoc         = $6e
+	Fireball_PageLoc      = $74+NES_RAM
+	Block_PageLoc         = $76+NES_RAM
+	Misc_PageLoc          = $7a+NES_RAM
+	Bubble_PageLoc        = $83+NES_RAM
+	
+	SprObject_X_Position  = $86+NES_RAM
+	Player_X_Position     = $86+NES_RAM
+	Enemy_X_Position      = $87+NES_RAM
+	Fireball_X_Position   = $8d+NES_RAM
+	Block_X_Position      = $8f+NES_RAM
+	Misc_X_Position       = $93+NES_RAM
+	Bubble_X_Position     = $9c+NES_RAM
+	
+	SprObject_Y_Speed     = $9f+NES_RAM
+	Player_Y_Speed        = $9f+NES_RAM
+	Enemy_Y_Speed         = $a0+NES_RAM
+	Fireball_Y_Speed      = $a6+NES_RAM
+	Block_Y_Speed         = $a8+NES_RAM
+	Misc_Y_Speed          = $ac
+	
+	SprObject_Y_HighPos   = $b5
+	Player_Y_HighPos      = $b5
+	Enemy_Y_HighPos       = $b6
+	Fireball_Y_HighPos    = $bc
+	Block_Y_HighPos       = $be
+	Misc_Y_HighPos        = $c2
+	Bubble_Y_HighPos      = $cb
+	
+	SprObject_Y_Position  = $ce
+	Player_Y_Position     = $ce
+	Enemy_Y_Position      = $cf
+	Fireball_Y_Position   = $d5
+	Block_Y_Position      = $d7
+	Misc_Y_Position       = $db
+	Bubble_Y_Position     = $e4
+	
+	SprObject_Rel_XPos    = $03ad+NES_RAM
+	Player_Rel_XPos       = $03ad+NES_RAM
+	Enemy_Rel_XPos        = $03ae+NES_RAM
+	Fireball_Rel_XPos     = $03af+NES_RAM
+	Bubble_Rel_XPos       = $03b0+NES_RAM
+	Block_Rel_XPos        = $03b1+NES_RAM
+	Misc_Rel_XPos         = $03b3+NES_RAM
+	
+	SprObject_Rel_YPos    = $03b8+NES_RAM
+	Player_Rel_YPos       = $03b8+NES_RAM
+	Enemy_Rel_YPos        = $03b9+NES_RAM
+	Fireball_Rel_YPos     = $03ba+NES_RAM
+	Bubble_Rel_YPos       = $03bb+NES_RAM
+	Block_Rel_YPos        = $03bc+NES_RAM
+	Misc_Rel_YPos         = $03be+NES_RAM
+	
+	SprObject_SprAttrib   = $03c4+NES_RAM
+	Player_SprAttrib      = $03c4+NES_RAM
+	Enemy_SprAttrib       = $03c5+NES_RAM
+	
+	SprObject_X_MoveForce = $0400+NES_RAM
+	Enemy_X_MoveForce     = $0401+NES_RAM
+	
+	SprObject_YMF_Dummy   = $0416+NES_RAM
+	Player_YMF_Dummy      = $0416+NES_RAM
+	Enemy_YMF_Dummy       = $0417+NES_RAM
+	Bubble_YMF_Dummy      = $042c+NES_RAM
+	
+	SprObject_Y_MoveForce = $0433+NES_RAM
+	Player_Y_MoveForce    = $0433+NES_RAM
+	Enemy_Y_MoveForce     = $0434+NES_RAM
+	Block_Y_MoveForce     = $043c+NES_RAM
+	
+	DisableCollisionDet   = $0716+NES_RAM
+	Player_CollisionBits  = $0490+NES_RAM
+	Enemy_CollisionBits   = $0491+NES_RAM
+	
+	SprObj_BoundBoxCtrl   = $0499+NES_RAM
+	Player_BoundBoxCtrl   = $0499+NES_RAM
+	Enemy_BoundBoxCtrl    = $049a+NES_RAM
+	Fireball_BoundBoxCtrl = $04a0+NES_RAM
+	Misc_BoundBoxCtrl     = $04a2+NES_RAM
+	
+	EnemyFrenzyBuffer     = $06cb+NES_RAM
+	EnemyFrenzyQueue      = $06cd+NES_RAM
+	Enemy_Flag            = $0f
+	Enemy_ID              = $16
+	
+	PlayerGfxOffset       = $06d5+NES_RAM
+	Player_XSpeedAbsolute = $0700+NES_RAM
+	FrictionAdderHigh     = $0701+NES_RAM
+	FrictionAdderLow      = $0702+NES_RAM
+	RunningSpeed          = $0703+NES_RAM
+	SwimmingFlag          = $0704+NES_RAM
+	Player_X_MoveForce    = $0705+NES_RAM
+	DiffToHaltJump        = $0706+NES_RAM
+	JumpOrigin_Y_HighPos  = $0707+NES_RAM
+	JumpOrigin_Y_Position = $0708+NES_RAM
+	VerticalForce         = $0709+NES_RAM
+	VerticalForceDown     = $070a+NES_RAM
+	PlayerChangeSizeFlag  = $070b+NES_RAM
+	PlayerAnimTimerSet    = $070c+NES_RAM
+	PlayerAnimCtrl        = $070d+NES_RAM
+	DeathMusicLoaded      = $0712+NES_RAM
+	FlagpoleSoundQueue    = $0713+NES_RAM
+	CrouchingFlag         = $0714+NES_RAM
+	MaximumLeftSpeed      = $0450+NES_RAM
+	MaximumRightSpeed     = $0456+NES_RAM
+	
+	SprObject_OffscrBits  = $03d0+NES_RAM
+	Player_OffscreenBits  = $03d0+NES_RAM
+	Enemy_OffscreenBits   = $03d1+NES_RAM
+	FBall_OffscreenBits   = $03d2+NES_RAM
+	Bubble_OffscreenBits  = $03d3+NES_RAM
+	Block_OffscreenBits   = $03d4+NES_RAM
+	Misc_OffscreenBits    = $03d6+NES_RAM
+	EnemyOffscrBitsMasked = $03d8+NES_RAM
 		
-		OffscreenPlayerInfo   = $0761+NES_RAM
-		OffScr_NumberofLives  = $0761+NES_RAM ;used by offscreen player
-		OffScr_HalfwayPage    = $0762+NES_RAM
-		OffScr_LevelNumber    = $0763+NES_RAM
-		OffScr_Hidden1UpFlag  = $0764+NES_RAM
-		OffScr_CoinTally      = $0765+NES_RAM
-		OffScr_WorldNumber    = $0766+NES_RAM
-		OffScr_AreaNumber     = $0767+NES_RAM
+	Cannon_Offset         = $046a+NES_RAM
+	Cannon_PageLoc        = $046b+NES_RAM
+	Cannon_X_Position     = $0471+NES_RAM
+	Cannon_Y_Position     = $0477+NES_RAM
+	Cannon_Timer          = $047d+NES_RAM
+	
+	Whirlpool_Offset      = $046a+NES_RAM
+	Whirlpool_PageLoc     = $046b+NES_RAM
+	Whirlpool_LeftExtent  = $0471+NES_RAM
+	Whirlpool_Length      = $0477+NES_RAM
+	Whirlpool_Flag        = $047d+NES_RAM
+	
+	VineFlagOffset        = $0398+NES_RAM
+	VineHeight            = $0399+NES_RAM
+	VineObjOffset         = $039a+NES_RAM
+	VineStart_Y_Position  = $039d+NES_RAM
+	
+	Block_Orig_YPos       = $03e4+NES_RAM
+	Block_BBuf_Low        = $03e6+NES_RAM
+	Block_Metatile        = $03e8+NES_RAM
+	Block_PageLoc2        = $03ea+NES_RAM
+	Block_RepFlag         = $03ec+NES_RAM
+	Block_ResidualCounter = $03f0+NES_RAM
+	Block_Orig_XPos       = $03f1+NES_RAM
+	
+	BoundingBox_UL_XPos   = $04ac+NES_RAM
+	BoundingBox_UL_YPos   = $04ad+NES_RAM
+	BoundingBox_DR_XPos   = $04ae+NES_RAM
+	BoundingBox_DR_YPos   = $04af+NES_RAM
+	BoundingBox_UL_Corner = $04ac+NES_RAM
+	BoundingBox_LR_Corner = $04ae+NES_RAM
+	EnemyBoundingBoxCoord = $04b0+NES_RAM
+	
+	PowerUpType           = $39
+	
+	FireballBouncingFlag  = $3a
+	FireballCounter       = $06ce+NES_RAM
+	FireballThrowingTimer = $0711+NES_RAM
+	
+	HammerEnemyOffset     = $06ae+NES_RAM
+	JumpCoinMiscOffset    = $06b7+NES_RAM
+	
+	Block_Buffer_1        = $0500+NES_RAM
+	Block_Buffer_2        = $05d0+NES_RAM
+	
+	HammerThrowingTimer   = $03a2+NES_RAM
+	HammerBroJumpTimer    = $3c
+	Misc_Collision_Flag   = $06be+NES_RAM
+	
+	RedPTroopaOrigXPos    = $0401+NES_RAM
+	RedPTroopaCenterYPos  = $58
+	
+	XMovePrimaryCounter   = $a0+NES_RAM
+	XMoveSecondaryCounter = $58
+	
+	CheepCheepMoveMFlag   = $58
+	CheepCheepOrigYPos    = $0434+NES_RAM
+	BitMFilter            = $06dd+NES_RAM
+	
+	LakituReappearTimer   = $06d1+NES_RAM
+	LakituMoveSpeed       = $58
+	LakituMoveDirection   = $a0+NES_RAM
+	
+	FirebarSpinState_Low  = $58
+	FirebarSpinState_High = $a0+NES_RAM
+	FirebarSpinSpeed      = $0388+NES_RAM
+	FirebarSpinDirection  = $34
+	
+	DuplicateObj_Offset   = $06cf+NES_RAM
+	NumberofGroupEnemies  = $06d3+NES_RAM
+	
+	BlooperMoveCounter    = $a0+NES_RAM
+	BlooperMoveSpeed      = $58
+	
+	BowserBodyControls    = $0363+NES_RAM
+	BowserFeetCounter     = $0364+NES_RAM
+	BowserMovementSpeed   = $0365+NES_RAM
+	BowserOrigXPos        = $0366+NES_RAM
+	BowserFlameTimerCtrl  = $0367+NES_RAM
+	BowserFront_Offset    = $0368+NES_RAM
+	BridgeCollapseOffset  = $0369+NES_RAM
+	BowserGfxFlag         = $036a+NES_RAM
+	BowserHitPoints       = $0483+NES_RAM
+	MaxRangeFromOrigin    = $06dc+NES_RAM
+	
+	BowserFlamePRandomOfs = $0417+NES_RAM
+	
+	PiranhaPlantUpYPos    = $0417+NES_RAM
+	PiranhaPlantDownYPos  = $0434+NES_RAM
+	PiranhaPlant_Y_Speed  = $58
+	PiranhaPlant_MoveFlag = $a0+NES_RAM
+	
+	FireworksCounter      = $06d7+NES_RAM
+	ExplosionGfxCounter   = $58 ;+NES_RAM
+	ExplosionTimerCounter = $a0+NES_RAM
+	
+	;sound related defines
+	Squ2_NoteLenBuffer    = $07b3+NES_RAM
+	Squ2_NoteLenCounter   = $07b4+NES_RAM
+	Squ2_EnvelopeDataCtrl = $07b5+NES_RAM
+	Squ1_NoteLenCounter   = $07b6+NES_RAM
+	Squ1_EnvelopeDataCtrl = $07b7+NES_RAM
+	Tri_NoteLenBuffer     = $07b8+NES_RAM
+	Tri_NoteLenCounter    = $07b9+NES_RAM
+	Noise_BeatLenCounter  = $07ba+NES_RAM
+	Squ1_SfxLenCounter    = $07bb+NES_RAM
+	Squ2_SfxLenCounter    = $07bd+NES_RAM
+	Sfx_SecondaryCounter  = $07be+NES_RAM
+	Noise_SfxLenCounter   = $07bf+NES_RAM
+	
+	PauseSoundQueue       = $fa ;+NES_RAM
+	Square1SoundQueue     = $ff ;+NES_RAM
+	Square2SoundQueue     = $fe ;+NES_RAM
+	NoiseSoundQueue       = $fd ;+NES_RAM
+	AreaMusicQueue        = $fb ;+NES_RAM
+	EventMusicQueue       = $fc ;+NES_RAM
+	
+	Square1SoundBuffer    = $f1 ;+NES_RAM
+	Square2SoundBuffer    = $f2 ;+NES_RAM
+	NoiseSoundBuffer      = $f3 ;+NES_RAM
+	AreaMusicBuffer       = $f4 ;+NES_RAM
+	EventMusicBuffer      = $07b1+NES_RAM
+	PauseSoundBuffer      = $07b2+NES_RAM
+	
+	MusicData             = $f5+NES_RAM
+	MusicDataLow          = $f5+NES_RAM
+	MusicDataHigh         = $f6+NES_RAM
+	MusicOffset_Square2   = $f7+NES_RAM
+	MusicOffset_Square1   = $f8+NES_RAM
+	MusicOffset_Triangle  = $f9+NES_RAM
+	MusicOffset_Noise     = $07b0+NES_RAM
+	
+	NoteLenLookupTblOfs   = $f0+NES_RAM
+	DAC_Counter           = $07c0+NES_RAM
+	NoiseDataLoopbackOfs  = $07c1+NES_RAM
+	NoteLengthTblAdder    = $07c4+NES_RAM
+	AreaMusicBuffer_Alt   = $07c5+NES_RAM
+	PauseModeFlag         = $07c6+NES_RAM
+	GroundMusicHeaderOfs  = $07c7+NES_RAM
+	AltRegContentFlag     = $07ca+NES_RAM
+; end of OG Game Code defines 
 
-		BalPlatformAlignment  = $03a0+NES_RAM
-		Platform_X_Scroll     = $03a1+NES_RAM
-		PlatformCollisionFlag = $03a2+NES_RAM
-		YPlatformTopYPos      = $0401+NES_RAM
-		YPlatformCenterYPos   = $58+NES_RAM
-
-		BrickCoinTimerFlag    = $06bc+NES_RAM
-		StarFlagTaskControl   = $0746+NES_RAM
-
-		PseudoRandomBitReg    = $07a7+NES_RAM
-		WarmBootValidation    = $07ff+NES_RAM
-
-		Player_State          = $1d+NES_RAM
-		Enemy_State           = $1e+NES_RAM
-		Fireball_State        = $24+NES_RAM
-		Block_State           = $26+NES_RAM
-		Misc_State            = $2a+NES_RAM
-
-		Player_MovingDir      = $45+NES_RAM
-		Enemy_MovingDir       = $46+NES_RAM
-
-		SprObject_X_Speed     = $57+NES_RAM
-		Player_X_Speed        = $57+NES_RAM
-		Enemy_X_Speed         = $58+NES_RAM
-		Fireball_X_Speed      = $5e+NES_RAM
-		Block_X_Speed         = $60+NES_RAM
-		Misc_X_Speed          = $64+NES_RAM
-
-		Jumpspring_FixedYPos  = $58+NES_RAM
-		JumpspringAnimCtrl    = $070e+NES_RAM
-		JumpspringForce       = $06db+NES_RAM
-
-		SprObject_PageLoc     = $6d+NES_RAM
-		Player_PageLoc        = $6d+NES_RAM
-		Enemy_PageLoc         = $6e+NES_RAM
-		Fireball_PageLoc      = $74+NES_RAM
-		Block_PageLoc         = $76+NES_RAM
-		Misc_PageLoc          = $7a+NES_RAM
-		Bubble_PageLoc        = $83+NES_RAM
-
-		SprObject_X_Position  = $86+NES_RAM
-		Player_X_Position     = $86+NES_RAM
-		Enemy_X_Position      = $87+NES_RAM
-		Fireball_X_Position   = $8d+NES_RAM
-		Block_X_Position      = $8f+NES_RAM
-		Misc_X_Position       = $93+NES_RAM
-		Bubble_X_Position     = $9c+NES_RAM
-
-		SprObject_Y_Speed     = $9f+NES_RAM
-		Player_Y_Speed        = $9f+NES_RAM
-		Enemy_Y_Speed         = $a0+NES_RAM
-		Fireball_Y_Speed      = $a6+NES_RAM
-		Block_Y_Speed         = $a8+NES_RAM
-		Misc_Y_Speed          = $ac+NES_RAM
-
-		SprObject_Y_HighPos   = $b5+NES_RAM
-		Player_Y_HighPos      = $b5+NES_RAM
-		Enemy_Y_HighPos       = $b6+NES_RAM
-		Fireball_Y_HighPos    = $bc+NES_RAM
-		Block_Y_HighPos       = $be+NES_RAM
-		Misc_Y_HighPos        = $c2+NES_RAM
-		Bubble_Y_HighPos      = $cb+NES_RAM
-
-		SprObject_Y_Position  = $ce+NES_RAM
-		Player_Y_Position     = $ce+NES_RAM
-		Enemy_Y_Position      = $cf+NES_RAM
-		Fireball_Y_Position   = $d5+NES_RAM
-		Block_Y_Position      = $d7+NES_RAM
-		Misc_Y_Position       = $db+NES_RAM
-		Bubble_Y_Position     = $e4+NES_RAM
-
-		SprObject_Rel_XPos    = $03ad+NES_RAM
-		Player_Rel_XPos       = $03ad+NES_RAM
-		Enemy_Rel_XPos        = $03ae+NES_RAM
-		Fireball_Rel_XPos     = $03af+NES_RAM
-		Bubble_Rel_XPos       = $03b0+NES_RAM
-		Block_Rel_XPos        = $03b1+NES_RAM
-		Misc_Rel_XPos         = $03b3+NES_RAM
-
-		SprObject_Rel_YPos    = $03b8+NES_RAM
-		Player_Rel_YPos       = $03b8+NES_RAM
-		Enemy_Rel_YPos        = $03b9+NES_RAM
-		Fireball_Rel_YPos     = $03ba+NES_RAM
-		Bubble_Rel_YPos       = $03bb+NES_RAM
-		Block_Rel_YPos        = $03bc+NES_RAM
-		Misc_Rel_YPos         = $03be+NES_RAM
-
-		SprObject_SprAttrib   = $03c4+NES_RAM
-		Player_SprAttrib      = $03c4+NES_RAM
-		Enemy_SprAttrib       = $03c5+NES_RAM
-
-		SprObject_X_MoveForce = $0400+NES_RAM
-		Enemy_X_MoveForce     = $0401+NES_RAM
-
-		SprObject_YMF_Dummy   = $0416+NES_RAM
-		Player_YMF_Dummy      = $0416+NES_RAM
-		Enemy_YMF_Dummy       = $0417+NES_RAM
-		Bubble_YMF_Dummy      = $042c+NES_RAM
-
-		SprObject_Y_MoveForce = $0433+NES_RAM
-		Player_Y_MoveForce    = $0433+NES_RAM
-		Enemy_Y_MoveForce     = $0434+NES_RAM
-		Block_Y_MoveForce     = $043c+NES_RAM
-
-		DisableCollisionDet   = $0716+NES_RAM
-		Player_CollisionBits  = $0490+NES_RAM
-		Enemy_CollisionBits   = $0491+NES_RAM
-
-		SprObj_BoundBoxCtrl   = $0499+NES_RAM
-		Player_BoundBoxCtrl   = $0499+NES_RAM
-		Enemy_BoundBoxCtrl    = $049a+NES_RAM
-		Fireball_BoundBoxCtrl = $04a0+NES_RAM
-		Misc_BoundBoxCtrl     = $04a2+NES_RAM
-
-		EnemyFrenzyBuffer     = $06cb+NES_RAM
-		EnemyFrenzyQueue      = $06cd+NES_RAM
-		Enemy_Flag            = $0f+NES_RAM
-		Enemy_ID              = $16+NES_RAM
-
-		PlayerGfxOffset       = $06d5+NES_RAM
-		Player_XSpeedAbsolute = $0700+NES_RAM
-		FrictionAdderHigh     = $0701+NES_RAM
-		FrictionAdderLow      = $0702+NES_RAM
-		RunningSpeed          = $0703+NES_RAM
-		SwimmingFlag          = $0704+NES_RAM
-		Player_X_MoveForce    = $0705+NES_RAM
-		DiffToHaltJump        = $0706+NES_RAM
-		JumpOrigin_Y_HighPos  = $0707+NES_RAM
-		JumpOrigin_Y_Position = $0708+NES_RAM
-		VerticalForce         = $0709+NES_RAM
-		VerticalForceDown     = $070a+NES_RAM
-		PlayerChangeSizeFlag  = $070b+NES_RAM
-		PlayerAnimTimerSet    = $070c+NES_RAM
-		PlayerAnimCtrl        = $070d+NES_RAM
-		DeathMusicLoaded      = $0712+NES_RAM
-		FlagpoleSoundQueue    = $0713+NES_RAM
-		CrouchingFlag         = $0714+NES_RAM
-		MaximumLeftSpeed      = $0450+NES_RAM
-		MaximumRightSpeed     = $0456+NES_RAM
-
-		SprObject_OffscrBits  = $03d0+NES_RAM
-		Player_OffscreenBits  = $03d0+NES_RAM
-		Enemy_OffscreenBits   = $03d1+NES_RAM
-		FBall_OffscreenBits   = $03d2+NES_RAM
-		Bubble_OffscreenBits  = $03d3+NES_RAM
-		Block_OffscreenBits   = $03d4+NES_RAM
-		Misc_OffscreenBits    = $03d6+NES_RAM
-		EnemyOffscrBitsMasked = $03d8+NES_RAM
-
-		Cannon_Offset         = $046a+NES_RAM
-		Cannon_PageLoc        = $046b+NES_RAM
-		Cannon_X_Position     = $0471+NES_RAM
-		Cannon_Y_Position     = $0477+NES_RAM
-		Cannon_Timer          = $047d+NES_RAM
-
-		Whirlpool_Offset      = $046a+NES_RAM
-		Whirlpool_PageLoc     = $046b+NES_RAM
-		Whirlpool_LeftExtent  = $0471+NES_RAM
-		Whirlpool_Length      = $0477+NES_RAM
-		Whirlpool_Flag        = $047d+NES_RAM
-
-		VineFlagOffset        = $0398+NES_RAM
-		VineHeight            = $0399+NES_RAM
-		VineObjOffset         = $039a+NES_RAM
-		VineStart_Y_Position  = $039d+NES_RAM
-
-		Block_Orig_YPos       = $03e4+NES_RAM
-		Block_BBuf_Low        = $03e6+NES_RAM
-		Block_Metatile        = $03e8+NES_RAM
-		Block_PageLoc2        = $03ea+NES_RAM
-		Block_RepFlag         = $03ec+NES_RAM
-		Block_ResidualCounter = $03f0+NES_RAM
-		Block_Orig_XPos       = $03f1+NES_RAM
-
-		BoundingBox_UL_XPos   = $04ac+NES_RAM
-		BoundingBox_UL_YPos   = $04ad+NES_RAM
-		BoundingBox_DR_XPos   = $04ae+NES_RAM
-		BoundingBox_DR_YPos   = $04af+NES_RAM
-		BoundingBox_UL_Corner = $04ac+NES_RAM
-		BoundingBox_LR_Corner = $04ae+NES_RAM
-		EnemyBoundingBoxCoord = $04b0+NES_RAM
-
-		PowerUpType           = $39+NES_RAM
-
-		FireballBouncingFlag  = $3a+NES_RAM
-		FireballCounter       = $06ce+NES_RAM
-		FireballThrowingTimer = $0711+NES_RAM
-
-		HammerEnemyOffset     = $06ae+NES_RAM
-		JumpCoinMiscOffset    = $06b7+NES_RAM
-
-		Block_Buffer_1        = $0500+NES_RAM
-		Block_Buffer_2        = $05d0+NES_RAM
-
-		HammerThrowingTimer   = $03a2+NES_RAM
-		HammerBroJumpTimer    = $3c+NES_RAM
-		Misc_Collision_Flag   = $06be+NES_RAM
-
-		RedPTroopaOrigXPos    = $0401+NES_RAM
-		RedPTroopaCenterYPos  = $58+NES_RAM
-
-		XMovePrimaryCounter   = $a0+NES_RAM
-		XMoveSecondaryCounter = $58+NES_RAM
-
-		CheepCheepMoveMFlag   = $58+NES_RAM
-		CheepCheepOrigYPos    = $0434+NES_RAM
-		BitMFilter            = $06dd+NES_RAM
-
-		LakituReappearTimer   = $06d1+NES_RAM
-		LakituMoveSpeed       = $58+NES_RAM
-		LakituMoveDirection   = $a0+NES_RAM
-
-		FirebarSpinState_Low  = $58+NES_RAM
-		FirebarSpinState_High = $a0+NES_RAM
-		FirebarSpinSpeed      = $0388+NES_RAM
-		FirebarSpinDirection  = $34+NES_RAM
-
-		DuplicateObj_Offset   = $06cf+NES_RAM
-		NumberofGroupEnemies  = $06d3+NES_RAM
-
-		BlooperMoveCounter    = $a0+NES_RAM
-		BlooperMoveSpeed      = $58+NES_RAM
-
-		BowserBodyControls    = $0363+NES_RAM
-		BowserFeetCounter     = $0364+NES_RAM
-		BowserMovementSpeed   = $0365+NES_RAM
-		BowserOrigXPos        = $0366+NES_RAM
-		BowserFlameTimerCtrl  = $0367+NES_RAM
-		BowserFront_Offset    = $0368+NES_RAM
-		BridgeCollapseOffset  = $0369+NES_RAM
-		BowserGfxFlag         = $036a+NES_RAM
-		BowserHitPoints       = $0483+NES_RAM
-		MaxRangeFromOrigin    = $06dc+NES_RAM
-
-		BowserFlamePRandomOfs = $0417+NES_RAM
-
-		PiranhaPlantUpYPos    = $0417+NES_RAM
-		PiranhaPlantDownYPos  = $0434+NES_RAM
-		PiranhaPlant_Y_Speed  = $58+NES_RAM
-		PiranhaPlant_MoveFlag = $a0+NES_RAM
-
-		FireworksCounter      = $06d7+NES_RAM
-		ExplosionGfxCounter   = $58+NES_RAM
-		ExplosionTimerCounter = $a0+NES_RAM
 
 setup:
 	lda #$0E
@@ -543,14 +640,32 @@ setup:
 	cmp #$A0+$10
 	bcc @l_l0
 
-
 	lda #%01110001
 	sta $9F29
 
 	lda #$40
 	sta $9F2A
 	sta $9F2B
-
+	
+	; load tiles into ram ; 
+	;ldx #<custom_tiles_name
+	;ldy #>custom_tiles_name
+	;lda #custom_tiles_name_end-custom_tiles_name
+	;jsr $FFBD ;SETNAM
+	
+	;lda #$FF ; file #
+	;ldx #$08 ; device no #8 (sd card / disk drive)
+	;ldy #$FF ; needs to be here 
+	;jsr $FFBA ; SETLFS 
+	
+	;lda #$01 
+	;sta $00 
+	
+	;lda #0 
+	;ldx #$00
+	;ldy #$A0
+	;jsr $FFD5
+	
 	; load tiles ;
 	lda #%01100001
 	sta $9F34 ; 2bpp mode
@@ -628,6 +743,26 @@ setup:
 	cmp #<sprite_data_end
 	bcc @l_sprite
 
+	; from setup code in smb1 ;
+	ldy #ColdBootOffset          ;load default cold boot pointer
+    ldx #$05                     ;this is where we check for a warm boot
+	@WBootCheck:  
+	lda TopScoreDisplay,x        ;check each score digit in the top score
+    cmp #10                      ;to see if we have a valid digit
+    bcs @ColdBoot                 ;if not, give up and proceed with cold boot
+    dex                      
+    bpl @WBootCheck
+    lda WarmBootValidation       ;second checkpoint, check to see if 
+    cmp #$a5                     ;another location has a specific value
+    bne @ColdBoot   
+    ldy #WarmBootOffset          ;if passed both, load warm boot pointer
+	@ColdBoot:    
+	jsr InitializeMemory         ;clear memory using pointer in Y
+    sta OperMode                 ;reset primary mode of operation
+    lda #$a5                     ;set warm boot flag
+    sta WarmBootValidation     
+
+
 	; coords for player sprite ;
 	lda #0
 	sta level ; World 1-1
@@ -665,7 +800,7 @@ loadPalette:
 	bne @l_palette
 	rts
 main:
-	; displays all the tiles in multiple palettes
+	; fills the screen with blank tiles
 	lda #$00
 	sta $9F20
 	sta $9F21
@@ -679,11 +814,15 @@ main:
 	sty $9F23 
 	
 	lda $9F21
-	cmp #30
+	cmp #4 
 	bcc @l
-	; this is for debugging, eventually this will be gone ;
-
-
+	cmp #30 
+	bcs @endL
+	lda #29
+	sta $9F21 
+	jmp @l
+	@endL:
+	
 	jsr createHUD
 	
 	lda #$03
@@ -718,24 +857,21 @@ main:
 
 end:
 	jsr reset_irq_handler
-	ldx #<default_palette
-	ldy #>default_palette
-	jsr loadPalette
-	lda #124
-	sta $9F36
-	brk
+	;ldx #<default_palette
+	;ldy #>default_palette
+	;jsr loadPalette
+	lda #%10000000
+	sta $9F25 
+	brk ; break, is the end of the program ;
 	rts
 
 outOfTime:
 	lda inLevel
-	cmp #$00
 	bne @d
 	rts
 	@d:
-
-	jmp die
 die:
-	lda #00
+	lda #0
 	sta timer+1
 	sta timer+2
 	lda #04
@@ -755,6 +891,7 @@ die:
 	stx lives
 	rts
 	@gameOver:
+	; kill player ; 
 	rts
 game:
 	lda paused
@@ -784,19 +921,16 @@ game:
 	ldx #$00
 	stx timer_frames
 
-	ldx timer+2
-	cpx #$00
+	lda timer+2
 	bne @c2
 	ldy #10
 	sty timer+2
-	ldx timer+1
-	cpx #$00
+	lda timer+1
 	bne @c1
 	ldy #10
 	sty timer+1
-	ldx timer
-	cpx #$00
-	bne @c0
+	lda timer
+	bne @c0 
 	jsr outOfTime
 	@c0:
 	dec timer
@@ -804,8 +938,25 @@ game:
 	dec timer+1
 	@c2:
 	dec timer+2
+	
+	; makes sure all the timer bytes are < 10
+	lda #9
+	cmp timer 
+	bcs @c0_1
+	sta timer
+	@c0_1:
+	cmp timer+1 
+	bcs @c1_1
+	sta timer+1
+	@c1_1:
+	cmp timer+2
+	bcs @c2_1
+	sta timer+2
+	@c2_1:
+	
 	@dontDecTimer:
-
+		
+	
 	; controller input ;
 	lda controller_input
 	sta controller_input+1
@@ -876,15 +1027,6 @@ game:
 	sta mario_accel
 
 	@handleController:
-	lda #$00
-	sta keys_pressed
-	sta keys_pressed+1
-	sta keys_pressed+2
-	sta keys_pressed+3
-	sta keys_pressed+4
-	sta keys_pressed+5
-	sta keys_pressed+6
-	sta keys_pressed+7
 
 	lda #$00
 	jsr $FF56 ; get input from joystick ;
@@ -901,8 +1043,6 @@ game:
 	bne @selNotPressed
 	lda #$00
 	sta quit
-	lda #01
-	sta keys_pressed+5
 	@selNotPressed:
 	; left d-pad ;
 	lda controller_input
@@ -910,8 +1050,6 @@ game:
 	bne @leftNotPressed
 	lda #256-2
 	sta mario_accel
-	lda #$01
-	sta keys_pressed+1
 	@leftNotPressed:
 
 	; right on d-pad ;
@@ -920,8 +1058,6 @@ game:
 	bne @rightNotPressed
 	lda #2
 	sta mario_accel
-	lda #$01
-	sta keys_pressed+1
 	@rightNotPressed:
 
 	; up on d pad for testing ;
@@ -934,50 +1070,52 @@ game:
 	lda controller_input
 	and #START_BUTTON
 	bne @startNotPressed
-	lda #1
-	sta keys_pressed+5
 	eor paused
 	sta paused
 	@startNotPressed:
 
+	lda mario_data  
+	bne @checkBPress
+	lda #0
+	sta mario_data+4 ; not running 
+	@checkBPress:
 	; b button ;
 	lda controller_input
 	and #B_BUTTON
 	bne @bNotPressed
-	lda #$01
-	sta keys_pressed+6
+	lda #1
+	sta mario_data+4
 	@bNotPressed:
 
 	; a button ;
 	lda controller_input
-	and #B_BUTTON
+	and #A_BUTTON
 	bne @aNotPressed
 	lda #$01
-	sta keys_pressed+7
 	lda mario_data ; check if mario is jumping ;
 	jsr jump
 
 	@aNotPressed:
 
-	lda mario_data
-	cmp #$00
-	bne @doneWithJoy
-	lda keys_pressed+6 ; check if b button pressed
-	cmp #$00
-	bne @doneWithJoy
+	;lda mario_data
+	;bne @doneWithJoy
+	lda controller_input ; check if b button pressed
+	and #B_BUTTON
+	beq @doneWithJoy
 	lda mario_vel
 	bmi @capNegativeVel
+	; cap positive velocity 
 	lda mario_vel
-	cmp #$10
+	cmp #$13
 	bcc @doneWithJoy
-	lda #$10
+	lda #$13
 	sta mario_vel
 	jmp @doneWithJoy
 	@capNegativeVel:
 	lda mario_vel
-	cmp #256-$10
+	cmp #256-$13
 	bcs @doneWithJoy
-	lda #256-$10
+	lda #256-$13
 	sta mario_vel
 
 	@doneWithJoy:
@@ -989,16 +1127,16 @@ game:
 
 	bmi @check_minus
 	; check positive x velocity ;
-	cmp #$1C
+	cmp #$20
 	bcc @done_vel_check
-	lda #$1C
+	lda #$20
 	sta mario_vel
 	jmp @done_vel_check
 	@check_minus:
 	; check negative x velocity ;
-	cmp #256-$1C
+	cmp #256-$1E
 	bcs @done_vel_check
-	lda #256-$1C
+	lda #256-$1E
 	sta mario_vel
 	@done_vel_check:
 
@@ -1090,18 +1228,25 @@ game:
 	stx mario_data+1
 	jmp @d0
 	@Moving:
-	lda frameCounter
-	ldx keys_pressed+6
-	cpx #$01
-	beq @run
-	lsr
-	bcs @d0
-	@run:
-	lsr
-	bcs @d0
-	lsr
-	bcs @d0
-
+	lda controller_input
+	and #B_BUTTON
+	bne @notRunning
+	
+	ldy timer_frames
+	lda timing_frame_dat,Y
+	and #2
+	bne @nextWalkFrame
+	jmp @d0
+	
+	@notRunning: 
+	
+	ldy timer_frames
+	lda timing_frame_dat,Y
+	and #1
+	bne @nextWalkFrame
+	jmp @d0 
+	
+	@nextWalkFrame:
 	ldx mario_data+1
 	inx
 	stx mario_data+1
@@ -1368,51 +1513,89 @@ progressLevel:
 	inc world
 	@end:
 loadNewLevel:
+	; initialize some variables ;
+	lda #01
+	sta inLevel 
+	lda #4
+	sta timer
+	lda #0
+	sta timer+1
+	sta timer+2
+	sta map_scroll
+	sta map_scroll+1
+	sta mario_data
+	sta mario_data+1
+	sta mario_data+3
+	sta mysterybox_no
+	sta ScrollLock
+	sta paused
+	; load the level ;
 	lda #$01
 	sta BackloadingFlag
 	jsr LoadAreaPointer
 	jsr InitializeArea
 	@loop_loadLevel:
 	pha 
+	jsr loadMoreLevelData
 	pla 
 	inc A
 	cmp #32
 	bcc @loop_loadLevel
+	
+	; find starting position for mario ;
+	lda #4		; 2
+	sta $9F20	; x
+	lda #27 	; 29 
+	sta $9F21 	; y
+	
+	lda #$a8 ; autodecrement of 512 bytes, 2 rows 
+	sta $9F22 
+	@loop_checkGround:
+	lda $9F21 
+	cmp #5 
+	bcc @finalizePlayerPosition
+	
+	lda $9F23 
+	cmp #$24
+	;tax 
+	;lda tiles_data_table,X
+	; and #%00000001
+	bne @loop_checkGround
+	
+	@finalizePlayerPosition:
+	lda #0 
+	sta player_y+1
+	lda $9F21
+	
+	asl A
+	sta player_y
+	rol player_y+1
+	asl player_y
+	rol player_y+1
+	asl player_y
+	rol player_y+1 ; y * 8 ; correct pixel position 
+	
+	asl player_y
+	rol player_y+1
+	asl player_y
+	rol player_y+1
+	asl player_y
+	rol player_y+1
+	asl player_y
+	rol player_y+1 ; 16 subpixels per pixel 
+	
+	; 2 in $9F20 * 8 = 16, 16 subpixels per pixel 
+	lda #<(16*16)
+	sta player_x
+	lda #>(16*16)
+	sta player_x+1
+	
 	rts
 
-
-;loadMoreLevelData:
-	;jsr AreaParserCore 
-
-	; demo screen ; 
-	;lda #$00
-	;sta MetatileBuffer
-	;lda #$80
-	;sta MetatileBuffer+1
-	;lda #$83
-	;sta MetatileBuffer+2
-	;lda #$00
-	;sta MetatileBuffer+3
-	;sta MetatileBuffer+4
-	;sta MetatileBuffer+5
-	;sta MetatileBuffer+6
-	;sta MetatileBuffer+7
-	;lda #$c0
-	;sta MetatileBuffer+8
-	;lda #$00
-	;sta MetatileBuffer+9
-	;sta MetatileBuffer+10
-	;lda #$05
-	;sta MetatileBuffer+11
-	;lda #$54
-	;sta MetatileBuffer+12
-	;sta MetatileBuffer+13
-	
 loadMoreLevelData:
 	jsr AreaParserCore
 	jsr RenderAreaGraphics
 	jsr IncrementColumnPos
-	;jsr IncrementColumnPos
 	
 	rts 
 ; ------------------------------------------------------------------------------------------- ;
@@ -1513,7 +1696,8 @@ RenderSceneryTerrain:
 	sec
 	sbc #$03                   ;if 3 or more, subtract 3 and
 	bpl @ThirdP                 ;do an unconditional branch
-@RendBack: asl                        ;move results to higher nybble
+@RendBack: 
+	asl                        ;move results to higher nybble
 	asl
 	asl
 	asl
@@ -1526,9 +1710,9 @@ RenderSceneryTerrain:
 	and #$0f                   ;save to stack and clear high nybble
 	sec
 	sbc #$01                   ;subtract one (because low nybble is $01-$0c)
-	sta $00                    ;save low nybble
+	sta $02                    ;save low nybble
 	asl                        ;multiply by three (shift to left and add result to old one)
-	adc $00                    ;note that since d7 was nulled, the carry flag is always clear
+	adc $02                    ;note that since d7 was nulled, the carry flag is always clear
 	tax                        ;save as offset for background scenery metatile data
 	pla                        ;get high nybble from stack, move low
 	lsr
@@ -1537,7 +1721,7 @@ RenderSceneryTerrain:
 	lsr
 	tay                        ;use as second offset (used to determine height)
 	lda #$03                   ;use previously saved memory location for counter
-	sta $00
+	sta $02
 @SceLoop1:
 	lda BackSceneryMetatiles,x ;load metatile data from offset of (lsb - 1) * 3
 	sta MetatileBuffer,y       ;store into buffer from offset of (msb / 16)
@@ -1545,7 +1729,7 @@ RenderSceneryTerrain:
 	iny
 	cpy #$0b                   ;if at this location, leave loop
 	beq @RendFore
-	dec $00                    ;decrement until counter expires, barring exception
+	dec $02                    ;decrement until counter expires, barring exception
 	bne @SceLoop1
 @RendFore:
 	ldx ForegroundScenery      ;check for foreground data needed or not
@@ -1582,21 +1766,21 @@ RenderSceneryTerrain:
 	tay
 @TerrLoop:
 	lda TerrainRenderBits,y    ;get one of the terrain rendering bit data
-	sta $00
+	sta $02
 	iny                        ;increment Y and use as offset next time around
-	sty $01
+	sty $03
 	lda CloudTypeOverride      ;skip if value here is zero
 	beq @NoCloud2
 	cpx #$00                   ;otherwise, check if we're doing the ceiling byte
 	beq @NoCloud2
-	lda $00                    ;if not, mask out all but d3
+	lda $02                    ;if not, mask out all but d3
 	and #%00001000
-	sta $00
+	sta $02
 @NoCloud2:
 	ldy #$00                   ;start at beginning of bitmasks
 @TerrBChk:
 	lda Bitmasks,y             ;load bitmask, then perform AND on contents of first byte
-	bit $00
+	bit $02
 	beq @NextTBit               ;if not set, skip this part (do not write terrain to buffer)
 	lda $07
 	sta MetatileBuffer,x       ;load terrain type metatile number and store into buffer here
@@ -1615,7 +1799,7 @@ RenderSceneryTerrain:
 	iny                        ;increment bitmasks offset in Y
 	cpy #$08
 	bne @TerrBChk               ;if not all bits checked, loop back
-	ldy $01
+	ldy $03
 	bne @TerrLoop               ;unconditional branch, use Y to load next byte
 @RendBBuf:
 	jsr ProcessAreaData        ;do the area data loading routine now
@@ -1624,7 +1808,7 @@ RenderSceneryTerrain:
 	ldx #$00
 	ldy #$00                   ;init index regs and start at beginning of smaller buffer
 @ChkMTLow:
-	sty $00
+	sty $02
 	lda MetatileBuffer,x       ;load stored metatile number
 	and #%11000000             ;mask out all but 2 MSB
 	asl
@@ -1636,7 +1820,7 @@ RenderSceneryTerrain:
 	bcs @StrBlock               ;if equal or greater, branch
 	lda #$00                   ;if less, init value before storing
 @StrBlock:
-	ldy $00                    ;get offset for block buffer
+	ldy $02                    ;get offset for block buffer
 	sta ($06),y                ;store value into block buffer
 	tya
 	clc                        ;add 16 (move down one row) to offset
@@ -1650,26 +1834,6 @@ RenderSceneryTerrain:
 ; initialize memory stuff, written by me ; 
 InitializeMemory:
 	pha 
-	lda #32 * 6
-	sta player_x
-	sta player_y
-	lda #04
-	sta timer
-	lda #00
-	sta timer+1
-	sta timer+2
-	
-	sta player_x+1
-	sta player_y+1
-	sta map_scroll
-	sta map_scroll+1
-	sta mario_data
-	sta mario_data+1
-	;sta mario_data+2
-	sta mario_data+3
-	sta mysterybox_no
-	sta ScrollLock
-	sta paused
 	
 	; r0 = NES_RAM , r1 = $0800 ;
 	; A = $00 ;
@@ -1702,7 +1866,8 @@ GetScreenPosition:
 BlockBuffLowBounds:
 		      .byte $10, $51, $88, $c0
 
-.include "AreaData.s" ; all the code for ProcessAreaData
+.include "AreaData.s" 	; all the code for ProcessAreaData
+.include "EnemyData.s"	; code for ProcessEnemyData
 
 ; this draws MetatileBuffer to the screen ;
 ; this routine is written by me ;
@@ -1771,6 +1936,40 @@ RenderAreaGraphics:
 	bcc @RenderLoop1
 	rts 
 
+; draws metatile at x-y register pair on l1	
+drawMetaTile:
+	pha 
+	txa 
+	asl 
+	sta $9F20 
+	tya 
+	asl 
+	sta $9F21
+	pla 		
+	jsr fetchMetaTile
+	lda $03
+	sta $9F23 
+	sty $9F23 
+	lda $05
+	sta $9F23 
+	sty $9F23 
+	
+	lda $9F20 
+	sec 
+	sbc #4
+	sta $9F20
+	bcc @di_1
+	inc $9F21 
+	@di_1:
+	
+	lda $04
+	sta $9F23 
+	sty $9F23 
+	lda $06
+	sta $9F23
+	sty $9F23
+	rts 
+	
 fetchMetaTile:
 	; writes the bytes of a metatile from $02 to $06 ;
 	; first byte is the palette index, second on are tiles ;
@@ -1825,9 +2024,16 @@ GetBlockBufferAddr:
 	sta $06                  ;store here and leave
 	rts
 
+;----------------------------------------------------------------------------------;
+
+AreaDataOfsLoopback:
+	.byte $12, $36, $0e, $0e, $0e, $32, $32, $32, $0a, $26, $40
+
+;----------------------------------------------------------------------------------;
+
 LoadAreaPointer:
 	jsr FindAreaPointer  ;find it and store it here
-  sta AreaPointer
+	sta AreaPointer
 GetAreaType:
 	and #%01100000       ;mask out all but d6 and d5
 	asl
@@ -1909,13 +2115,22 @@ updateHUD:
 	stx $9F20
 	lda #$18 ; lowercase x
 	sta $9F23
-	clc
-	lda coins+1
-	adc #$30
-	sta $9F23
-	lda coins
-	adc #$30
-	sta $9F23
+	
+	lda player_y+1
+	jsr hexChars
+	sty $9F23 
+	stx $9F23 
+	lda player_y
+	jsr hexChars
+	sty $9F23 
+	stx $9F23 
+	;clc 
+	;lda coins+1
+	;adc #$30
+	;sta $9F23
+	;lda coins
+	;adc #$30
+	;sta $9F23
 
 	ldx #166
 	stx $9F20
@@ -1950,3 +2165,19 @@ drawSprite:
 	sta $1B
 	write_sprite $1A, $18, $12, $16, $14, $17, $1B, $19
 	rts
+
+hexChars:
+	pha 
+	and #$0F 
+	clc 
+	adc #$30 
+	tax 
+	pla 
+	lsr 
+	lsr 
+	lsr 
+	lsr 
+	clc 
+	adc #$30 
+	tay 
+	rts 

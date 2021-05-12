@@ -2,6 +2,10 @@
 ; https://gist.github.com/1wErt3r/4048722    ;
 
 ; constants ;
+
+WarmBootOffset        = <$07d6
+ColdBootOffset        = <$07fe
+
 ;enemy object constants
 GreenKoopa            = $00
 BuzzyBeetle           = $02

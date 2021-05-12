@@ -1026,6 +1026,5 @@ GetAreaObjYPosition:
 
 WriteGameText:
   rts ; we can ignore this for now, it only displays warp zone messages to the screen and other things, not so essential
-InitPiranhaPlant:
-  rts
+
   ; this is so itll assemble, need to remove when actual enemy routines are put in ;
