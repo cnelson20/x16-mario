@@ -1087,6 +1087,8 @@ game:
 	jsr game_physics
 	
 	; draw mario ;
+	lda mario_data 
+	bne @d0
 	lda mario_vel
 	cmp #$00
 	bne @Moving
@@ -1486,6 +1488,9 @@ game_physics:
 	jmp @notOnGround
 	
 	@inWall:
+	lda #$00
+	sta mario_vel 
+	sta mario_accel
 	lda #$01
 	sta mario_data+5
 	lda mario_data+3
