@@ -12,7 +12,7 @@
 .include "data.s"
 
 tiles_data_table:
-	.res $100,$00
+	.incbin "tiledb.bin"
 overworld_palette:
 	.incbin "overworld_palette.bin"
 custom_tiles_name:
@@ -63,8 +63,6 @@ paused:
 	.byte $00
 mario_accel:
 	.byte $00; x and y acceleration ;
-mario_yAccel:
-	.byte $00
 mario_vel:
 	.byte $00
 mario_yVel:
@@ -72,9 +70,10 @@ mario_yVel:
 mario_pos:
 	.byte $00, $00
 mario_data:
-; inair, walk frame, powerup, direction, ground_run ;
+; inair, walk frame, powerup, direction, ground_run, falling ;
 ; powerup: 0 = small 1=mushroom 2=fire flower ;
-	.byte $00, $00, $00, $00, $00
+; direction: 0 = right, 1 = left;
+	.byte $00, $00, $00, $00, $00, $00
 player_x:
 	.byte $00, $00
 player_y:
@@ -85,16 +84,16 @@ temp_scroll:
 	.byte $00, $00
 timer_frames:
 	.byte $00
+timer_byte:
+	.byte $00
 inLevel:
 	.byte $00
 LoadMoreAreaFlag:
 	.byte $00
-NES_RAM:
-	.res $800,$00
-NES_RAM_end:
+NES_RAM:= $A000
+NES_RAM_end:= $A800
 
 	ObjectOffset          = $08
-	
 	FrameCounter          = $09
 	
 	SavedJoypadBits       = $06fc+NES_RAM
@@ -647,25 +646,6 @@ setup:
 	sta $9F2A
 	sta $9F2B
 	
-	; load tiles into ram ; 
-	;ldx #<custom_tiles_name
-	;ldy #>custom_tiles_name
-	;lda #custom_tiles_name_end-custom_tiles_name
-	;jsr $FFBD ;SETNAM
-	
-	;lda #$FF ; file #
-	;ldx #$08 ; device no #8 (sd card / disk drive)
-	;ldy #$FF ; needs to be here 
-	;jsr $FFBA ; SETLFS 
-	
-	;lda #$01 
-	;sta $00 
-	
-	;lda #0 
-	;ldx #$00
-	;ldy #$A0
-	;jsr $FFD5
-	
 	; load tiles ;
 	lda #%01100001
 	sta $9F34 ; 2bpp mode
@@ -912,7 +892,8 @@ game:
 	rts
 
 	@unpaused:
-
+	
+	inc timer_byte
 	ldx timer_frames
 	inx
 	stx timer_frames
@@ -1088,138 +1069,23 @@ game:
 	@bNotPressed:
 
 	; a button ;
+	ldx #24
+	ldy mario_data+5
+	bne @aNotPressed
 	lda controller_input
 	and #A_BUTTON
 	bne @aNotPressed
-	lda #$01
-	lda mario_data ; check if mario is jumping ;
+	
 	jsr jump
-
+	ldx timer_byte
 	@aNotPressed:
-
-	;lda mario_data
-	;bne @doneWithJoy
-	lda controller_input ; check if b button pressed
-	and #B_BUTTON
-	beq @doneWithJoy
-	lda mario_vel
-	bmi @capNegativeVel
-	; cap positive velocity 
-	lda mario_vel
-	cmp #$13
-	bcc @doneWithJoy
-	lda #$13
-	sta mario_vel
-	jmp @doneWithJoy
-	@capNegativeVel:
-	lda mario_vel
-	cmp #256-$13
-	bcs @doneWithJoy
-	lda #256-$13
-	sta mario_vel
+	stx timer_byte
 
 	@doneWithJoy:
 
-	clc
-	lda mario_vel
-	adc mario_accel
-	sta mario_vel
-
-	bmi @check_minus
-	; check positive x velocity ;
-	cmp #$20
-	bcc @done_vel_check
-	lda #$20
-	sta mario_vel
-	jmp @done_vel_check
-	@check_minus:
-	; check negative x velocity ;
-	cmp #256-$1E
-	bcs @done_vel_check
-	lda #256-$1E
-	sta mario_vel
-	@done_vel_check:
-
-
-	lda mario_vel
-	cmp #$FF
-	bcs @setVelZero
-	cmp #$02
-	bcc @setVelZero
-	jmp @applyVel
-	@setVelZero:
-	lda #$00
-	sta mario_vel
-	sta mario_accel
-
-	@applyVel:
-	; apply mario's velocity to marios position ;
-	lda mario_vel
-	bpl @rightwardsVel
-	lda #$00
-	sbc mario_vel
-	sec
-	sta $10 ; store this velocity
-	lda player_x
-	sbc $10 ; subtract it ;
-	sta player_x
-	lda player_x+1
-	sbc #$00
-	sta player_x+1
-	jmp @velApplied
-	@rightwardsVel:
-	clc
-	adc player_x
-	sta player_x
-	lda player_x+1
-	adc #$00
-	sta player_x+1
-
-	@velApplied:
-
-	lda player_x+1
-	cmp #$FF
-	bne @XnotOOB
-	lda #$00
-	sta player_x
-	sta player_x+1
-	@XnotOOB:
-	lda player_y+1
-	cmp #$FF
-	bne @YnotOOB
-	lda #$00
-	sta player_y
-	sta player_y+1
-	@YnotOOB:
-
-	lda mario_yVel ; yVel
-	adc mario_yAccel
-	sta mario_yVel
-
-
-	jmp @yVelApplied ; dont move mario up and down ;
-	lda mario_yVel
-	bpl @downwardsVel
-	lda #$00
-	sbc mario_yVel
-	sec
-	sta $10 ; store this velocity
-	lda player_y
-	sbc $10 ; subtract it ;
-	sta player_y
-	lda player_y+1
-	sbc #$00
-	sta player_y+1
-	jmp @yVelApplied
-	@downwardsVel:
-	clc
-	adc player_y
-	sta player_y
-	lda player_y+1
-	adc #$00
-	sta player_y+1
-	@yVelApplied:
-
+	; game physics 
+	jsr game_physics
+	
 	; draw mario ;
 	lda mario_vel
 	cmp #$00
@@ -1393,14 +1259,17 @@ game:
 	@actuallyDrawSprite:
 
 	lda mario_data+3
-	cmp #$01
-	beq @facingLeft
+	bne @facingLeft ; check if != 0, if so go to code for facing left 
 
 	; @facingRight: ;
 	lda #$00
 	sta $16
 	sta $17
 	lda mario_data+1
+	ldx mario_data ; is mario in air? 
+	beq @s4LY_R
+	lda #4 ; mario jumping frame data ;
+	@s4LY_R:
 	asl
 	asl
 	asl
@@ -1444,6 +1313,10 @@ game:
 	sta $17  ; y offset ;
 
 	lda mario_data+1
+	ldx mario_data ; is mario in air? 
+	beq @s4LY_L
+	lda #4 ; mario jumping frame data ;
+	@s4LY_L:
 	clc
 	adc #$01
 	asl
@@ -1491,15 +1364,214 @@ game:
 	jsr updateHUD
 	rts
 
-jump:
-	lda #$01
-	cmp mario_data
-	bcs @end
-	sta mario_data
+game_physics:
+	; If walking, cap player's velocity ;
+	lda controller_input ; check if b button pressed
+	and #B_BUTTON
+	beq @doneWithJoy
+	lda mario_vel
+	bmi @capNegativeVel
+	; cap positive velocity 
+	lda mario_vel
+	cmp #$13
+	bcc @doneWithJoy
+	lda #$13
+	sta mario_vel
+	jmp @doneWithJoy
+	@capNegativeVel:
+	lda mario_vel
+	cmp #256-$13
+	bcs @doneWithJoy
+	lda #256-$13
+	sta mario_vel
 
-	@end:
-	rts
+	@doneWithJoy:
+
+	clc
+	lda mario_vel
+	adc mario_accel
+	sta mario_vel
+
+	bmi @check_minus
+	; check positive x velocity ;
+	cmp #$20
+	bcc @done_vel_check
+	lda #$20
+	sta mario_vel
+	jmp @done_vel_check
+	@check_minus:
+	; check negative x velocity ;
+	cmp #256-$1E
+	bcs @done_vel_check
+	lda #256-$1E
+	sta mario_vel
+	@done_vel_check:
+
+
+	lda mario_vel
+	cmp #$FF
+	bcs @setVelZero
+	cmp #$02
+	bcc @setVelZero
+	jmp @applyVel
+	@setVelZero:
+	lda #$00
+	sta mario_vel
+	sta mario_accel
+
+	@applyVel:
+	; apply mario's velocity to marios position ;
+	lda mario_vel
+	bpl @rightwardsVel
+	lda #$00
+	sbc mario_vel
+	sec
+	sta $10 ; store this velocity
+	lda player_x
+	sbc $10 ; subtract it ;
+	sta player_x
+	lda player_x+1
+	sbc #$00
+	sta player_x+1
+	jmp @velApplied
+	@rightwardsVel:
+	clc
+	adc player_x
+	sta player_x
+	lda player_x+1
+	adc #$00
+	sta player_x+1
+
+	@velApplied:
+
+	lda player_x+1
+	cmp #$FF
+	bne @XnotOOB
+	lda #$00
+	sta player_x
+	sta player_x+1
+	@XnotOOB:
+	lda player_y+1
+	cmp #$FF
+	bne @YnotOOB
+	lda #$00
+	sta player_y
+	sta player_y+1
+	@YnotOOB:
+
+	clc 
+	lda mario_yVel ; yVel
+	adc #03
+	sta mario_yVel
+	bmi @notFalling
+	lda #1
+	sta mario_data+5
+	@notFalling:
 	
+	lda timer_byte
+	beq @notOnGround
+	jsr checkCollisionUnder
+	beq @notOnGround
+	
+	jsr checkCollisionSides
+	bne @inWall
+	
+	lda #$00
+	sta mario_yVel
+	sta mario_data
+	sta mario_data+5
+	lda player_y 
+	and #128 
+	sta player_y
+	jmp @notOnGround
+	
+	@inWall:
+	lda #$01
+	sta mario_data+5
+	lda mario_data+3
+	bne @inWall_facingL
+	@inWall_facingR:
+	lda player_x 
+	and #128 
+	sta player_x 
+	jmp @notOnGround
+	@inWall_facingL:
+	lda player_x 
+	ora #127
+	sta player_x 
+	@notOnGround:
+	
+	; cap downwards y vel ;
+	lda mario_yVel
+	bmi @dontCapYVel
+	cmp #$50
+	bcc @dontCapYVel
+	lda #$50
+	sta mario_yVel
+	@dontCapYVel:
+	
+	;jmp @yVelApplied ; dont move mario up and down ;
+	lda mario_yVel
+	bpl @downwardsVel
+	lda #$00
+	sbc mario_yVel
+	sec
+	sta $10 ; store this velocity
+	lda player_y
+	sbc $10 ; subtract it ;
+	sta player_y
+	lda player_y+1
+	sbc #$00
+	sta player_y+1
+	jmp @yVelApplied
+	@downwardsVel:
+	clc
+	adc player_y
+	sta player_y
+	lda player_y+1
+	adc #$00
+	sta player_y+1
+	@yVelApplied:
+
+	lda player_y+1
+	cmp #>8*29
+	bcc @overDeathBarrier
+	lda player_y+1
+	cmp #<8*29
+	bcc @overDeathBarrier
+	; dead ; 
+	jsr die 
+	@overDeathBarrier:
+
+	rts 
+
+jump:
+	lda mario_data; check mario
+	bne @alr_inAir ; branch if mario is in the air
+	
+	; code for jumping ;
+	lda #$01
+	sta mario_data ; mario is now in the air 
+	;lda #256-$40
+	;sta mario_yVel
+	lda #$00
+	sta timer_byte
+	sta mario_data+5
+	
+	@alr_inAir:
+	lda timer_byte
+	cmp #24
+	bcs @end
+	lda #256-$40
+	adc timer_byte
+	adc #4
+	sta mario_yVel
+	rts 
+	@end:
+	lda #1 
+	sta mario_data+5
+	rts
+		
 progressLevel:
 	ldx level
 	cpx #3 ; 4 - 1
@@ -1555,17 +1627,17 @@ loadNewLevel:
 	cmp #5 
 	bcc @finalizePlayerPosition
 	
-	lda $9F23 
-	cmp #$24
-	;tax 
-	;lda tiles_data_table,X
-	; and #%00000001
+	ldy $9F23 
+	lda tiles_data_table,Y
+	and #%00000001
 	bne @loop_checkGround
 	
 	@finalizePlayerPosition:
 	lda #0 
 	sta player_y+1
 	lda $9F21
+	inc A 
+	inc A
 	
 	asl A
 	sta player_y
@@ -1589,7 +1661,6 @@ loadNewLevel:
 	sta player_x
 	lda #>(16*16)
 	sta player_x+1
-	
 	rts
 
 loadMoreLevelData:
@@ -1598,6 +1669,103 @@ loadMoreLevelData:
 	jsr IncrementColumnPos
 	
 	rts 
+
+; doesnt work right ;
+loadTilesNearPlayer:
+	; player_x gets stored to $20 & $21, player_y to $22 & $23
+	; tiles (their data really) gets stored to $24 through $27 
+	; which tiles are to be read gets stored to $28 & $29
+	
+	; add scroll to player position ;
+	clc 
+	lda $12
+	adc map_scroll
+	sta $20
+	sta $3A
+	lda $13
+	adc map_scroll+1
+	sta $21
+	sta $3B
+	
+	; divide both player x & y position by 8 (3 shifts), tiles are 8 px in size ;
+	lsr $21 
+	ror $20
+	lsr $21
+	ror $20	
+	lsr $21
+	ror $20 ; x / 8
+	
+	lda $15
+	sta $23
+	lda $14
+	sta $22
+	
+	lsr $23
+	ror $22
+	lsr $23
+	ror $22
+	lsr $23
+	ror $22 ; y / 8
+	
+	lda #$20 
+	sta $9F22
+	lda $20
+	asl A
+	tax 
+	ldy $22
+	
+	iny
+	sty $9F21
+	stx $9F20 
+	ldy $9F23 
+	lda tiles_data_table,Y
+	sta $33
+	ldy $9F23 
+	lda tiles_data_table,Y
+	sta $34
+	ldy $9F23 
+	lda tiles_data_table,Y
+	sta $35	
+	
+	inc $9F21 
+	stx $9F20 
+	ldy $9F23 
+	lda tiles_data_table,Y
+	sta $36
+	ldy $9F23 
+	lda tiles_data_table,Y
+	sta $37
+	ldy $9F23 
+	lda tiles_data_table,Y
+	sta $38
+	rts
+
+checkCollisionSides:
+	lda $3A
+	ldx $35
+	and #%00001111
+	bne @fx
+	ldx $34
+	@fx:
+	txa 
+	ora $34
+	ora $33
+	rts 
+	
+checkCollisionUnder:
+	jsr loadTilesNearPlayer
+	
+	lda $3A
+	ldx $38
+	and #%00001111
+	bne @fx
+	ldx $37
+	@fx:
+	txa 
+	ora $37
+	ora $36
+	rts 
+	
 ; ------------------------------------------------------------------------------------------- ;
 ; ORIGINAL SMB1 CODE;
 InitializeArea:
@@ -2111,26 +2279,29 @@ updateHUD:
 	adc #$30
 	sta $9F23
 
-	ldx #152
-	stx $9F20
+	lda #152
+	sta $9F20
 	lda #$18 ; lowercase x
 	sta $9F23
 	
-	lda player_y+1
-	jsr hexChars
-	sty $9F23 
-	stx $9F23 
-	lda player_y
-	jsr hexChars
-	sty $9F23 
-	stx $9F23 
-	;clc 
-	;lda coins+1
-	;adc #$30
-	;sta $9F23
-	;lda coins
-	;adc #$30
-	;sta $9F23
+	;jsr checkCollision
+	;jsr hexChars 
+	lda #154
+	sta $9F20
+	lda #$A0
+	sta $9F21
+	lda #$21
+	sta $9F22
+	;sty $9F23 
+	;stx $9F23 
+	
+	clc 
+	lda lives+1
+	adc #$30
+	sta $9F23
+	lda lives
+	adc #$30
+	sta $9F23
 
 	ldx #166
 	stx $9F20
@@ -2169,15 +2340,18 @@ drawSprite:
 hexChars:
 	pha 
 	and #$0F 
-	clc 
-	adc #$30 
+	tax 
+	lda @data,X 
 	tax 
 	pla 
 	lsr 
 	lsr 
 	lsr 
-	lsr 
-	clc 
-	adc #$30 
+	lsr  
 	tay 
-	rts 
+	lda @data,Y 
+	tay 
+	rts
+	@data:
+		.byte $30, $31, $32, $33, $34, $35, $36, $37, $38, $39, $01, $02, $03, $04, $05, $06
+		
