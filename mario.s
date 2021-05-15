@@ -42,8 +42,8 @@ timing_frame_dat:
 ; running = 10 
 ; walking = 01
 ; both    =	11
-	.byte %11, %00, %00, %00, %10, %00, %01, %00, %10, %00, %00, %00
-	.byte %11, %00, %00, %00, %10, %00, %01, %00, %10, %00, %00, %00
+	.byte %11, %00, %00, %00, %10, %00, %00, %00, %11, %00, %00, %00
+	.byte %10, %00, %00, %00, %11, %00, %00, %00, %10, %00, %00, %00
 frame_data:
 	;little mario ;
 	; mario standing still ;
@@ -1090,7 +1090,6 @@ game:
 	lda mario_data 
 	bne @d0
 	lda mario_vel
-	cmp #$00
 	bne @Moving
 	ldx #$00
 	stx mario_data+1
@@ -1099,7 +1098,7 @@ game:
 	lda controller_input
 	and #B_BUTTON
 	bne @notRunning
-	
+
 	ldy timer_frames
 	lda timing_frame_dat,Y
 	and #2
@@ -1469,15 +1468,13 @@ game_physics:
 	lda #1
 	sta mario_data+5
 	@notFalling:
-	
+
 	lda timer_byte
 	beq @notOnGround
 	jsr checkCollisionUnder
-	beq @notOnGround
+	beq @checkInWall 
 	
-	jsr checkCollisionSides
-	bne @inWall
-	
+	; on the ground ;
 	lda #$00
 	sta mario_yVel
 	sta mario_data
@@ -1485,13 +1482,15 @@ game_physics:
 	lda player_y 
 	and #128 
 	sta player_y
-	jmp @notOnGround
+	
+	@checkInWall:
+	jsr checkCollisionSides
+	beq @notOnGround
 	
 	@inWall:
 	lda #$00
 	sta mario_vel 
 	sta mario_accel
-	lda #$01
 	sta mario_data+5
 	lda mario_data+3
 	bne @inWall_facingL
