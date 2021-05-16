@@ -74,6 +74,8 @@ mario_data:
 ; powerup: 0 = small 1=mushroom 2=fire flower ;
 ; direction: 0 = right, 1 = left;
 	.byte $00, $00, $00, $00, $00, $00
+mario_groundDirection:
+	.byte $00
 player_x:
 	.byte $00, $00
 player_y:
@@ -1239,17 +1241,16 @@ game:
 	@dontLoad: 
 	; draw sprite now kinda sorta ;
 	lda mario_vel
-	cmp #$00
-	beq @actuallyDrawSprite
-	cmp #$80
-	bcs @lVel
+	beq @directionFound
+	bmi @lVel
 	lda #$00
 	jmp @storeDirection
 	@lVel:
 	lda #$01
 	@storeDirection:
 	sta mario_data+3
-
+	@directionFound:
+	
 	; check for super mario ;
 	lda mario_data+2
 	cmp #$00
@@ -1471,6 +1472,24 @@ game_physics:
 
 	lda timer_byte
 	beq @notOnGround
+	
+	jsr checkCollisionAbove
+	beq @check_below
+	
+	; below a block ;
+	lda #24
+	sta timer_byte
+	lda #3
+	sta mario_yVel
+	lda #1
+	sta mario_data+5
+	inc player_y 
+	bne @dIh
+	inc player_y+1
+	@dIh:
+	jmp @notOnGround
+	
+	@check_below:
 	jsr checkCollisionUnder
 	beq @checkInWall 
 	
@@ -1493,18 +1512,16 @@ game_physics:
 	sta mario_accel
 	sta mario_data+5
 	lda mario_data+3
-	bne @inWall_facingL
-	@inWall_facingR:
-	lda player_x 
-	and #128 
-	sta player_x 
-	jmp @notOnGround
+	beq @inWall_facingR
 	@inWall_facingL:
-	lda player_x 
-	ora #127
+	inc player_x+1
+	@inWall_facingR:
+	lda #0 
 	sta player_x 
+	;jmp @notOnGround
+	 
 	@notOnGround:
-	
+
 	; cap downwards y vel ;
 	lda mario_yVel
 	bmi @dontCapYVel
@@ -1538,13 +1555,16 @@ game_physics:
 	@yVelApplied:
 
 	lda player_y+1
-	cmp #>8*29
+	cmp #>(16*8*29)
 	bcc @overDeathBarrier
-	lda player_y+1
-	cmp #<8*29
+	lda player_y
+	cmp #<(16*8*29)
 	bcc @overDeathBarrier
 	; dead ; 
 	jsr die 
+	jsr loadNewLevel
+	rts 
+	; dying screws up the level gen right now ;
 	@overDeathBarrier:
 
 	rts 
@@ -1602,6 +1622,9 @@ loadNewLevel:
 	sta mario_data
 	sta mario_data+1
 	sta mario_data+3
+	sta mario_data+4
+	sta mario_data+5 
+	sta timer_byte
 	sta mysterybox_no
 	sta ScrollLock
 	sta paused
@@ -1629,14 +1652,14 @@ loadNewLevel:
 	@loop_checkGround:
 	lda $9F21 
 	cmp #5 
-	bcc @finalizePlayerPosition
+	bcc FinalizePlayerPosition
 	
 	ldy $9F23 
 	lda tiles_data_table,Y
 	and #%00000001
 	bne @loop_checkGround
 	
-	@finalizePlayerPosition:
+FinalizePlayerPosition:
 	lda #0 
 	sta player_y+1
 	lda $9F21
@@ -1674,8 +1697,8 @@ loadMoreLevelData:
 	
 	rts 
 
-; doesnt work right ;
-loadTilesNearPlayer:
+
+calcTilesNearPlayer:
 	; player_x gets stored to $20 & $21, player_y to $22 & $23
 	; tiles (their data really) gets stored to $24 through $27 
 	; which tiles are to be read gets stored to $28 & $29
@@ -1710,6 +1733,11 @@ loadTilesNearPlayer:
 	ror $22
 	lsr $23
 	ror $22 ; y / 8
+	
+	rts 
+	
+loadTilesNearPlayer:
+	jsr calcTilesNearPlayer
 	
 	lda #$20 
 	sta $9F22
@@ -1768,6 +1796,45 @@ checkCollisionUnder:
 	txa 
 	ora $37
 	ora $36
+	rts 
+
+checkCollisionAbove:
+	jsr calcTilesNearPlayer
+	lda #$20 
+	sta $9F22
+	lda $20
+	asl A
+	sta $9F20  
+	ldy $22	
+	
+	ldx #0 
+	lda $3A 
+	and #%00000111
+	beq @xOnEdge
+	ldx #1
+	@xOnEdge: 
+	; keep in x ;
+	
+	;iny
+	lda $3B ; y position 
+	and #%00001111
+	bne @notOnEdge
+	;dey 
+	@notOnEdge:
+	sty $9F21 
+	
+	; now load tiles ;
+	ldy $9F23 
+	lda tiles_data_table,Y
+	ldy $9F23 
+	ora tiles_data_table,Y
+	; check $3A to see if we to need this tile ;
+	cpx #0 
+	beq @dontORlastTile
+	ldy $9F23 
+	ora tiles_data_table,Y
+	@dontORlastTile:
+	
 	rts 
 	
 ; ------------------------------------------------------------------------------------------- ;
