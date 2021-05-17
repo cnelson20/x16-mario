@@ -88,6 +88,8 @@ timer_frames:
 	.byte $00
 timer_byte:
 	.byte $00
+ReverseDirectionFlag: 
+	.byte $00
 inLevel:
 	.byte $00
 LoadMoreAreaFlag:
@@ -812,7 +814,6 @@ main:
 	lda #$00
 	sta lives+1
 	sta coins 
-	sta coins+1
 	sta score
 	sta score+1
 	sta score+2
@@ -883,7 +884,7 @@ game:
 	lda controller_input
 	sta controller_input+1
 
-	lda #$00
+	lda #00
 	jsr $FF56
 	sta controller_input
 	and #START_BUTTON
@@ -939,6 +940,8 @@ game:
 	
 	@dontDecTimer:
 		
+	lda #0 
+	sta ReverseDirectionFlag
 	
 	; controller input ;
 	lda controller_input
@@ -1031,7 +1034,7 @@ game:
 	lda controller_input
 	and #LT_BUTTON
 	bne @leftNotPressed
-	lda #256-2
+	lda #256-3
 	sta mario_accel
 	@leftNotPressed:
 
@@ -1039,7 +1042,7 @@ game:
 	lda controller_input
 	and #RT_BUTTON
 	bne @rightNotPressed
-	lda #2
+	lda #3
 	sta mario_accel
 	@rightNotPressed:
 
@@ -1248,6 +1251,7 @@ game:
 	@lVel:
 	lda #$01
 	@storeDirection:
+	eor ReverseDirectionFlag
 	sta mario_data+3
 	@directionFound:
 	
@@ -1389,11 +1393,15 @@ game_physics:
 
 	@doneWithJoy:
 
+	lda timer_frames 
+	lsr 
+	bcs @accelApplied
 	clc
 	lda mario_vel
 	adc mario_accel
 	sta mario_vel
-
+	@accelApplied:
+	
 	bmi @check_minus
 	; check positive x velocity ;
 	cmp #$20
@@ -1471,26 +1479,108 @@ game_physics:
 	@notFalling:
 
 	lda timer_byte
-	beq @notOnGround
+	bne @dJ0
+	jmp @notOnGround
+	@dJ0:
 	
 	jsr checkCollisionAbove
-	beq @check_below
+	tay 
+	and #1
+	bne @dJ1
+	jmp @check_below
+	@dJ1:
 	
 	; below a block ;
-	lda #24
-	sta timer_byte
-	lda #3
-	sta mario_yVel
-	lda #1
-	sta mario_data+5
+	ldx #24
+	stx timer_byte
+	ldx #3
+	stx mario_yVel
+	ldx #1
+	stx mario_data+5
 	inc player_y 
 	bne @dIh
 	inc player_y+1
 	@dIh:
+	tya 
+	and #2
+	;bne @dJ2 REMOVE THE COMMENT ON THIS LINE LATER!!
+	jmp @notQBlock
+	@dJ2:
+	; mystery block ;
+	lda #0
+	sta $9F22
+	lda $20
+	and #%11111110
+	asl A 
+	sta $9F20 
+	lda $22
+	dec A 
+	dec A
+	ora #1
+	sta $9F21 
+	
+	ldy #0 
+	@f_loop: 
+	lda $9F23 
+	cmp #$53
+	bcc @nLB
+	cmp #$57
+	bcs @nLB
+	jmp @yLB
+	@nLB:
+	ldx $9F20 
+	inx 
+	inx 
+	stx $9F20 
+	iny 
+	cpy #1 
+	beq @f_loop
+	@yLB:
+	ldx $9F20 
+	clc 
+	lda $9F23 
+	adc #4 
+	sta $9F23 
+	inx 
+	inx 
+	stx $9F20 
+	lda $9F23 
+	adc #4 
+	sta $9F23 
+	inc $9F21 
+	lda $9F23 
+	adc #4 
+	sta $9F23 
+	dex 
+	dex 
+	stx $9F20 
+	lda $9F23 
+	adc #4 
+	sta $9F23
+	
+	jsr checkPowerupBlock
+	beq @jumpToNotOnGround
+	lda coins 
+	cmp #$99
+	beq @incLives 
+	sed 
+	adc #1
+	sta coins 
+	cld 
+	jmp @notOnGround
+	@incLives: 
+	inc lives 
+	lda #0 
+	sta coins 
+	@jumpToNotOnGround:
+	jmp @notOnGround
+	@notQBlock:
+	
 	jmp @notOnGround
 	
 	@check_below:
 	jsr checkCollisionUnder
+	and #1
 	beq @checkInWall 
 	
 	; on the ground ;
@@ -1504,13 +1594,16 @@ game_physics:
 	
 	@checkInWall:
 	jsr checkCollisionSides
+	and #1
 	beq @notOnGround
 	
 	@inWall:
-	lda #$00
+	lda #0
 	sta mario_vel 
-	sta mario_accel
+	sta mario_accel 
+	lda #1
 	sta mario_data+5
+	
 	lda mario_data+3
 	beq @inWall_facingR
 	@inWall_facingL:
@@ -1518,8 +1611,8 @@ game_physics:
 	@inWall_facingR:
 	lda #0 
 	sta player_x 
-	;jmp @notOnGround
 	 
+	
 	@notOnGround:
 
 	; cap downwards y vel ;
@@ -1553,7 +1646,13 @@ game_physics:
 	adc #$00
 	sta player_y+1
 	@yVelApplied:
-
+	
+	lda player_y+1
+	bpl @posPlayerY
+	lda #0 
+	sta player_y 
+	sta player_y+1
+	@posPlayerY:
 	lda player_y+1
 	cmp #>(16*8*29)
 	bcc @overDeathBarrier
@@ -1736,18 +1835,47 @@ calcTilesNearPlayer:
 	
 	rts 
 	
-loadTilesNearPlayer:
-	jsr calcTilesNearPlayer
+loadTilesNearPlayerSide: 
+	;jsr calcTilesNearPlayer
+	jmp loadTilesNearPlayer 
 	
+loadTilesNearPlayerUnder:
+	jsr calcTilesNearPlayer
+loadTilesNearPlayer: 	
 	lda #$20 
 	sta $9F22
 	lda $20
 	asl A
 	tax 
 	ldy $22
+	lda mario_data+2
+	beq @dontIncY2
+	iny 
+	@dontIncY2:
 	
-	iny
+	lda $20 
+	and #%01111111
+	cmp #$7F 
+	bne @dontIncY0
+	dey 
+	@dontIncY0:
 	sty $9F21
+	stx $9F20 
+	ldy $9F23 
+	lda tiles_data_table,Y
+	sta $30
+	ldy $9F23 
+	lda tiles_data_table,Y
+	sta $31
+	ldy $9F23 
+	lda tiles_data_table,Y
+	sta $32	
+	
+	
+	cpx $9F20 
+	bcs @dontIncY1; if x > $9F20, you know a wrap occurred 
+	inc $9F21 
+	@dontIncY1:
 	stx $9F20 
 	ldy $9F23 
 	lda tiles_data_table,Y
@@ -1759,9 +1887,12 @@ loadTilesNearPlayer:
 	lda tiles_data_table,Y
 	sta $35	
 	
+	cpx $9F20 
+	bcs @dontIncY3; if x > $9F20, you know a wrap occurred 
 	inc $9F21 
+	@dontIncY3:
 	stx $9F20 
-	ldy $9F23 
+	ldy $9F23
 	lda tiles_data_table,Y
 	sta $36
 	ldy $9F23 
@@ -1770,22 +1901,46 @@ loadTilesNearPlayer:
 	ldy $9F23 
 	lda tiles_data_table,Y
 	sta $38
+	
 	rts
 
 checkCollisionSides:
-	lda $3A
-	ldx $35
-	and #%00001111
-	bne @fx
-	ldx $34
-	@fx:
-	txa 
+	lda $3A 
+	and #128 
+	sta $02 
+	lda $3B 
+	and #128 
+	sta $03 
+	
+	lda $30 
+	ora $31 
+	ora $33 
 	ora $34
-	ora $33
+	ldx $02 
+	beq @onlyL 
+	ora $32 
+	ora $35 
+	ldx $03 
+	beq @onlyT 
+	ora $36 
+	ora $37 
+	ora $38
+	@onlyT: 
+	rts 
+	@onlyL:
+	ldx $03 
+	beq @onlyT
+	ora $36 
+	ora $37
 	rts 
 	
 checkCollisionUnder:
 	jsr loadTilesNearPlayer
+	lda $22 
+	and #1
+	bne @dontRt
+	rts 
+	@dontRt: 
 	
 	lda $3A
 	ldx $38
@@ -1815,12 +1970,6 @@ checkCollisionAbove:
 	@xOnEdge: 
 	; keep in x ;
 	
-	;iny
-	lda $3B ; y position 
-	and #%00001111
-	bne @notOnEdge
-	;dey 
-	@notOnEdge:
 	sty $9F21 
 	
 	; now load tiles ;
@@ -1835,6 +1984,10 @@ checkCollisionAbove:
 	ora tiles_data_table,Y
 	@dontORlastTile:
 	
+	rts 
+
+checkPowerupBlock:
+	lda #1 
 	rts 
 	
 ; ------------------------------------------------------------------------------------------- ;
@@ -2355,25 +2508,23 @@ updateHUD:
 	lda #$18 ; lowercase x
 	sta $9F23
 	
-	;jsr checkCollision
-	;jsr hexChars 
-	lda #154
-	sta $9F20
-	lda #$A0
-	sta $9F21
-	lda #$21
-	sta $9F22
-	;sty $9F23 
-	;stx $9F23 
+	lda $20 
+	jsr hexChars 
+	sty $9F23 
+	stx $9F23 
 	
-	clc 
-	lda lives+1
-	adc #$30
-	sta $9F23
-	lda lives
-	adc #$30
-	sta $9F23
-
+	lda coins
+	lsr 
+	lsr 
+	lsr 
+	lsr 
+	adc #$30 
+	sta $9F23 
+	lda coins 
+	and #%00001111
+	adc #$30 
+	sta $9F23 
+	
 	ldx #166
 	stx $9F20
 	clc
