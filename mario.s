@@ -74,7 +74,7 @@ mario_data:
 ; powerup: 0 = small 1=mushroom 2=fire flower ;
 ; direction: 0 = right, 1 = left;
 	.byte $00, $00, $00, $00, $00, $00
-mario_groundDirection:
+hitWallYet:
 	.byte $00
 player_x:
 	.byte $00, $00
@@ -1477,11 +1477,60 @@ game_physics:
 	lda #1
 	sta mario_data+5
 	@notFalling:
-
+	
+	@checkInWall:
+	jsr checkCollisionSides
+	and #1
+	beq @notInWall
+	
+	@inWall:
+	lda #0
+	sta mario_vel 
+	sta mario_accel 
+	lda #1
+	sta hitWallYet
+	sta mario_data+5
+	
+	lda $13
+	sta $21
+	lda $12 
+	sta $20 
+	
+	asl $20 
+	rol $21
+	asl $20 
+	rol $21	
+	asl $20 
+	rol $21
+	asl $20 
+	rol $21
+	lda $21 
+	sta player_x+1
+	lda $20 
+	sta player_x
+	
+	ldx mario_data+3 
+	beq @inWall_FacingR; if facing right branch 
+	jmp @check_below
+	@inWall_FacingR:
+	; player_x is still stored in A ; 
+	eor #128 ; flip highest bit 
+	sta player_x
+	bmi @DEC_PLAYER_X_HI
+	jmp @check_below
+	@DEC_PLAYER_X_HI: 
+	dec player_x+1
+	jmp @check_below
+	@notInWall:
+	
 	lda timer_byte
 	bne @dJ0
 	jmp @notOnGround
 	@dJ0:
+	lda hitWallYet
+	beq @dJN1 
+	jmp @check_below
+	@dJN1:
 	
 	jsr checkCollisionAbove
 	tay 
@@ -1581,38 +1630,18 @@ game_physics:
 	@check_below:
 	jsr checkCollisionUnder
 	and #1
-	beq @checkInWall 
+	beq @notOnGround 
 	
 	; on the ground ;
 	lda #$00
 	sta mario_yVel
 	sta mario_data
 	sta mario_data+5
+	sta hitWallYet
 	lda player_y 
 	and #128 
 	sta player_y
-	
-	@checkInWall:
-	jsr checkCollisionSides
-	and #1
-	beq @notOnGround
-	
-	@inWall:
-	lda #0
-	sta mario_vel 
-	sta mario_accel 
-	lda #1
-	sta mario_data+5
-	
-	lda mario_data+3
-	beq @inWall_facingR
-	@inWall_facingL:
-	inc player_x+1
-	@inWall_facingR:
-	lda #0 
-	sta player_x 
-	 
-	
+		
 	@notOnGround:
 
 	; cap downwards y vel ;
@@ -1709,7 +1738,7 @@ progressLevel:
 	@end:
 loadNewLevel:
 	; initialize some variables ;
-	lda #01
+	lda #1
 	sta inLevel 
 	lda #4
 	sta timer
@@ -1723,6 +1752,7 @@ loadNewLevel:
 	sta mario_data+3
 	sta mario_data+4
 	sta mario_data+5 
+	sta hitWallYet
 	sta timer_byte
 	sta mysterybox_no
 	sta ScrollLock
@@ -1835,13 +1865,9 @@ calcTilesNearPlayer:
 	
 	rts 
 	
-loadTilesNearPlayerSide: 
-	;jsr calcTilesNearPlayer
-	jmp loadTilesNearPlayer 
-	
+loadTilesNearPlayer: 
 loadTilesNearPlayerUnder:
-	jsr calcTilesNearPlayer
-loadTilesNearPlayer: 	
+	jsr calcTilesNearPlayer	
 	lda #$20 
 	sta $9F22
 	lda $20
@@ -1905,11 +1931,12 @@ loadTilesNearPlayer:
 	rts
 
 checkCollisionSides:
+	jsr loadTilesNearPlayer
 	lda $3A 
-	and #128 
+	and #8 
 	sta $02 
 	lda $3B 
-	and #128 
+	and #8 
 	sta $03 
 	
 	lda $30 
