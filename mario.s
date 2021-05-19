@@ -1509,17 +1509,17 @@ game_physics:
 	lda $20 
 	sta player_x
 	
-	ldx mario_data+3 
-	beq @inWall_FacingR; if facing right branch 
-	jmp @check_below
-	@inWall_FacingR:
+	;ldx mario_data+3 
+	;beq @inWall_FacingR; if facing right branch 
+	;jmp @check_below
+	;@inWall_FacingR:
 	; player_x is still stored in A ; 
-	eor #128 ; flip highest bit 
-	sta player_x
-	bmi @DEC_PLAYER_X_HI
-	jmp @check_below
-	@DEC_PLAYER_X_HI: 
-	dec player_x+1
+	;eor #128 ; flip highest bit 
+	;sta player_x
+	;bmi @DEC_PLAYER_X_HI
+	;jmp @check_below
+	;@DEC_PLAYER_X_HI: 
+	;dec player_x+1
 	jmp @check_below
 	@notInWall:
 	
