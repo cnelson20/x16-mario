@@ -1,9 +1,0 @@
-#ffffff
-#800000
-#a0f0e0
-#d0a040 ; yellow
-#a04000 ; red
-#608020 ; green
-#d08010 ; brown
-#000000 ; black
-#f0c0b0 ; light brown
