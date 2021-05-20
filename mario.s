@@ -1478,65 +1478,20 @@ game_physics:
 	sta mario_data+5
 	@notFalling:
 	
-	@checkInWall:
-	jsr checkCollisionSides
-	and #1
-	beq @notInWall
-	
-	@inWall:
-	lda #0
-	sta mario_vel 
-	sta mario_accel 
-	lda #1
-	sta hitWallYet
-	sta mario_data+5
-	
-	lda $13
-	sta $21
-	lda $12 
-	sta $20 
-	
-	asl $20 
-	rol $21
-	asl $20 
-	rol $21	
-	asl $20 
-	rol $21
-	asl $20 
-	rol $21
-	lda $21 
-	sta player_x+1
-	lda $20 
-	sta player_x
-	
-	;ldx mario_data+3 
-	;beq @inWall_FacingR; if facing right branch 
-	;jmp @check_below
-	;@inWall_FacingR:
-	; player_x is still stored in A ; 
-	;eor #128 ; flip highest bit 
-	;sta player_x
-	;bmi @DEC_PLAYER_X_HI
-	;jmp @check_below
-	;@DEC_PLAYER_X_HI: 
-	;dec player_x+1
-	jmp @check_below
-	@notInWall:
-	
 	lda timer_byte
 	bne @dJ0
-	jmp @notOnGround
+	jmp @checkInWall
 	@dJ0:
 	lda hitWallYet
 	beq @dJN1 
-	jmp @check_below
+	jmp @checkInWall
 	@dJN1:
 	
 	jsr checkCollisionAbove
 	tay 
 	and #1
 	bne @dJ1
-	jmp @check_below
+	jmp @checkInWall
 	@dJ1:
 	
 	; below a block ;
@@ -1552,7 +1507,7 @@ game_physics:
 	@dIh:
 	tya 
 	and #2
-	;bne @dJ2 REMOVE THE COMMENT ON THIS LINE LATER!!
+	bne @dJ2 ;REMOVE THE COMMENT ON THIS LINE LATER!!
 	jmp @notQBlock
 	@dJ2:
 	; mystery block ;
@@ -1627,7 +1582,47 @@ game_physics:
 	
 	jmp @notOnGround
 	
+	@checkInWall:
+	jsr checkCollisionSides
+	and #1
+	beq @notInWall
+	
+	@inWall:
+	lda #0
+	sta mario_vel 
+	sta mario_accel 
+	lda #1
+	sta hitWallYet
+	sta mario_data+5
+	
+	lda $13
+	sta $21
+	lda $12 
+	sta $20 
+	
+	asl $20 
+	rol $21
+	asl $20 
+	rol $21	
+	asl $20 
+	rol $21
+	asl $20 
+	rol $21
+	
+	lda $21 
+	sta player_x+1
+	lda $20
+	sta player_x
+	
+	jmp @check_below
+	
+	@notInWall:
+	
 	@check_below:
+	lda timer_byte
+	bne @dJB_0
+	jmp @notOnGround
+	@dJB_0:
 	jsr checkCollisionUnder
 	and #1
 	beq @notOnGround 
@@ -1866,8 +1861,14 @@ calcTilesNearPlayer:
 	rts 
 	
 loadTilesNearPlayer: 
+	jsr calcTilesNearPlayer
+	lda mario_data+3
+	bne TilesCalced
+	inc $20
+	jmp TilesCalced
 loadTilesNearPlayerUnder:
 	jsr calcTilesNearPlayer	
+TilesCalced:
 	lda #$20 
 	sta $9F22
 	lda $20
@@ -1943,6 +1944,8 @@ checkCollisionSides:
 	ora $31 
 	ora $33 
 	ora $34
+	ldx mario_data+3 
+	beq @onlyL
 	ldx $02 
 	beq @onlyL 
 	ora $32 
@@ -1981,7 +1984,23 @@ checkCollisionUnder:
 	rts 
 
 checkCollisionAbove:
+	lda $14
+	pha  
+	sec 
+	sbc #2
+	sta $14
+	lda $15 
+	pha 
+	sbc #0
+	sta $15
+	
+	lda $20 
+	ldx $21 
 	jsr calcTilesNearPlayer
+	pla 
+	sta $15
+	pla 
+	sta $14
 	lda #$20 
 	sta $9F22
 	lda $20
