@@ -1478,20 +1478,58 @@ game_physics:
 	sta mario_data+5
 	@notFalling:
 	
+	@checkInWall:
+	jsr checkCollisionSides
+	and #1
+	beq @notInWall
+	
+	@inWall:
+	lda #0
+	sta mario_vel 
+	sta mario_accel 
+	lda #1
+	sta hitWallYet
+	sta mario_data+5
+	
+	lda $13
+	sta $21
+	lda $12 
+	sta $20 
+	
+	asl $20 
+	rol $21
+	asl $20 
+	rol $21	
+	asl $20 
+	rol $21
+	asl $20 
+	rol $21
+	
+	lda $21 
+	sta player_x+1
+	lda $20
+	sta player_x
+	
+	;lda mario_data 
+	;bne @notInWall 
+	;jmp @notOnGround
+	
+	@notInWall:
+	
 	lda timer_byte
 	bne @dJ0
-	jmp @checkInWall
+	jmp @check_below
 	@dJ0:
 	lda hitWallYet
 	beq @dJN1 
-	jmp @checkInWall
+	jmp @check_below
 	@dJN1:
 	
 	jsr checkCollisionAbove
 	tay 
 	and #1
 	bne @dJ1
-	jmp @checkInWall
+	jmp @check_below
 	@dJ1:
 	
 	; below a block ;
@@ -1541,13 +1579,15 @@ game_physics:
 	beq @f_loop
 	@yLB:
 	ldx $9F20 
-	clc 
 	lda $9F23 
-	adc #4 
+	cmp #$53 
+	bne @dontChangeBlock
+	lda #$57
 	sta $9F23 
 	inx 
 	inx 
 	stx $9F20 
+	clc 
 	lda $9F23 
 	adc #4 
 	sta $9F23 
@@ -1562,6 +1602,7 @@ game_physics:
 	adc #4 
 	sta $9F23
 	
+	@dontChangeBlock: 
 	jsr checkPowerupBlock
 	beq @jumpToNotOnGround
 	lda coins 
@@ -1579,44 +1620,7 @@ game_physics:
 	@jumpToNotOnGround:
 	jmp @notOnGround
 	@notQBlock:
-	
 	jmp @notOnGround
-	
-	@checkInWall:
-	jsr checkCollisionSides
-	and #1
-	beq @notInWall
-	
-	@inWall:
-	lda #0
-	sta mario_vel 
-	sta mario_accel 
-	lda #1
-	sta hitWallYet
-	sta mario_data+5
-	
-	lda $13
-	sta $21
-	lda $12 
-	sta $20 
-	
-	asl $20 
-	rol $21
-	asl $20 
-	rol $21	
-	asl $20 
-	rol $21
-	asl $20 
-	rol $21
-	
-	lda $21 
-	sta player_x+1
-	lda $20
-	sta player_x
-	
-	jmp @check_below
-	
-	@notInWall:
 	
 	@check_below:
 	lda timer_byte
@@ -1932,7 +1936,28 @@ TilesCalced:
 	rts
 
 checkCollisionSides:
+	lda mario_yVel 
+	bpl @loadTiles 
+	lda $14
+	pha  
+	clc 
+	adc #3
+	sta $14
+	lda $15 
+	pha 
+	adc #0
+	sta $15
+	
+	@loadTiles: 
 	jsr loadTilesNearPlayer
+	lda mario_yVel 
+	bpl @dontPull
+	pla 
+	sta $15 
+	pla 
+	sta $14
+	@dontPull:
+	
 	lda $3A 
 	and #8 
 	sta $02 
@@ -1984,23 +2009,8 @@ checkCollisionUnder:
 	rts 
 
 checkCollisionAbove:
-	lda $14
-	pha  
-	sec 
-	sbc #2
-	sta $14
-	lda $15 
-	pha 
-	sbc #0
-	sta $15
-	
-	lda $20 
-	ldx $21 
 	jsr calcTilesNearPlayer
-	pla 
-	sta $15
-	pla 
-	sta $14
+	
 	lda #$20 
 	sta $9F22
 	lda $20
